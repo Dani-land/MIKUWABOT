@@ -64,6 +64,9 @@ export async function uPLoader() {
   const BAR_SIZE = 42
   const VER = global.version?.replace('^', '') || '3.1.0'
 
+  // En entorno no interactivo (servidor/Replit), auto-seleccionar según global.pairing_code
+  const isInteractive = process.stdin.isTTY
+
   const phases = [
     { until: 25,  color: chalk.hex('#ff6b6b'), label: '⚡ Iniciando módulos del sistema...' },
     { until: 55,  color: chalk.hex('#feca57'), label: '📦 Cargando comandos y plugins...'   },
@@ -102,6 +105,13 @@ export async function uPLoader() {
     font: 'console', align: 'center',
     gradient: ['magenta', 'cyan'],
   })
+
+  // Si global.pairing_code está definido, seleccionar automáticamente (no preguntar)
+  if (typeof global.pairing_code !== 'undefined') {
+    const auto = global.pairing_code ? '2' : '1'
+    log.info(`Método de inicio automático: ${auto === '2' ? 'Código de emparejamiento (8 dígitos)' : 'Código QR'}`)
+    return auto
+  }
 
   console.log('\n' + boxen(
     chalk.yellow.bold('  Seleccione el método de inicio:\n\n') +
@@ -219,12 +229,24 @@ async function startBot() {
   if (!client.authState.creds.registered) {
     console.clear()
     if (LOGIN_METHOD === '2') {
-      console.log(chalk.bold.redBright('\nIngrese su número de WhatsApp\n') + chalk.yellowBright('Ejemplo: +57301XXXXXXX\n'))
-      const fixed = await question(chalk.magentaBright('➤ Número: '))
+      let fixed
+      if (global.number_bot && global.number_bot.trim()) {
+        // Usar número configurado en settings.js automáticamente
+        fixed = global.number_bot.trim()
+        log.info(`Usando número configurado: ${fixed}`)
+      } else if (process.stdin.isTTY) {
+        console.log(chalk.bold.redBright('\nIngrese su número de WhatsApp\n') + chalk.yellowBright('Ejemplo: +57301XXXXXXX\n'))
+        fixed = await question(chalk.magentaBright('➤ Número: '))
+      } else {
+        log.error('No se configuró global.number_bot en settings.js y no hay TTY disponible.')
+        log.error('Por favor configura tu número en settings.js: global.number_bot = "521234567890"')
+        process.exit(1)
+      }
       const phoneNumber = normalizePhoneForPairing(fixed)
       try {
         const pairing = await client.requestPairingCode(phoneNumber)
         console.log(chalk.bgMagenta.white.bold('\n CÓDIGO DE VINCULACIÓN ') + '\n\n' + chalk.white.bold(pairing) + '\n')
+        log.info('Ingresa este código en WhatsApp > Dispositivos vinculados > Vincular dispositivo')
       } catch (err) {
         console.log(chalk.red('❌ Error al generar código'))
         exec('rm -rf ./Sessions/Owner/*')
