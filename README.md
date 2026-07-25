@@ -1,0 +1,117 @@
+
+> [!NOTE]
+> **Miku Wabot está en constante evolución.**  
+> Nos esforzamos cada día para ofrecerte la mejor experiencia posible.  
+> ¿Quieres estar al día de todas las novedades y actualizaciones?  
+> **[¡Únete a mi canal de WhatsApp!](https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b)**
+
+<p align="center">
+  <img src="https://qu.ax/oAfvK" alt="Miku" width="220" height="auto">
+</p>
+
+---
+
+## ✨ Sobre Miku Wabot
+
+**Miku Wabot** es un bot de WhatsApp multifuncional y moderno construido con **Baileys**.  
+Diseñado para ser rápido, estable y lleno de funciones útiles que harán tu día a día en WhatsApp mucho más divertido y práctico.
+
+---
+
+## 🔥 Características Principales
+
+- ✅ Respuestas automáticas inteligentes
+- ✅ Gestión avanzada de grupos
+- ✅ Juegos interactivos y divertidos
+- ✅ Descargadores (YouTube, TikTok, Instagram, etc.)
+- ✅ Integración con APIs externas
+- ✅ Sistema de comandos dinámico
+- ✅ Soporte multi-dispositivo
+
+---
+
+## 🚀 Instalación Rápida
+
+**Summary:**
+<strong>📌 Requisitos e Instalación</strong>
+
+**Recomendación importante:**
+- Usa siempre la librería oficial de **Baileys** (nunca forks ni mods).
+
+```bash
+apt update && apt upgrade -y
+pkg install -y git nodejs ffmpeg imagemagick yarn
+```
+
+```bash
+git clone https://github.com/Dani-land/MikuWabot-MD
+cd MikuWabot-MD
+yarn install
+npm install
+npm start
+```
+
+> Cuando aparezca **(Y/I/N/O/D/Z)** escribe `y` y presiona **ENTER**.
+
+---
+
+## ⚡ Mantener el Bot 24/7 (PM2)
+
+**Summary:**
+<strong>💎 Comandos PM2</strong>
+
+Ejecuta estos comandos dentro de la carpeta del bot:
+
+```bash
+termux-wake-lock
+npm install -g pm2
+pm2 start index.js --name MikuWabot
+pm2 save
+pm2 logs
+```
+
+### Comandos útiles
+
+- **Ver logs**: `pm2 logs`
+- **Detener bot**: `pm2 stop MikuWabot`
+- **Reiniciar bot**: `pm2 restart MikuWabot`
+- **Eliminar bot**: `pm2 delete MikuWabot`
+
+---
+
+### Si el bot se detiene
+
+```bash
+cd && cd MikuWabot-MD && npm start
+```
+
+### Obtener nueva sesión (QR)
+
+```bash
+cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
+```
+
+---
+
+## 🌐 Enlaces Útiles
+
+| Servicio       | Enlace |
+|----------------|--------|
+| **Sitio Web**  | [Visitar Documentación](https://senko-bot-miku-bots-documentados-bo-eight.vercel.app) |
+| **API**        | [Senko API](https://senko-apiserverg5.onrender.com/) |
+| **Canal WA**   | [Únete al Canal](https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b) |
+
+---
+
+## ❤️ Créditos
+
+### Desarrollador Principal
+[![Danielrxz](https://tmpfiles.org/dl/wnwV9ZSOjrMu/file.jpg?size=150)](https://github.com/Dani-land)
+
+### Agradecimientos Especiales
+[![Yuliethxz](https://tmpfiles.org/dl/wewr97Suvugx/file.jpg?size=100)](https://github.com/DevYuliethxyz)
+
+---
+
+**¡Gracias por usar Miku Wabot!** 💖  
+Si te gusta el proyecto, no olvides dejar una ⭐ en el repositorio.
