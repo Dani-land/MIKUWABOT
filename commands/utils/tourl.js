@@ -1,83 +1,95 @@
-import uploadImage from '../../lib/uploadImage.js';
-import fetch from 'node-fetch';
+import uploadImage from '../../lib/uploadImage.js'
+import fetch from 'node-fetch'
 
 function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
-
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-
-  return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
+  if (!bytes || bytes === 0) return '0 B'
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
 }
 
 export default {
   command: ['tourl'],
   category: 'utils',
 
-  run: async (client, m, args, usedPrefix, command) => {
+  run: async ({ client, m, args, usedPrefix, command, text }) => {
     try {
-      const botId = ((client.user?.id || client.user?.jid || '').split(':')[0] || '') + '@s.whatsapp.net';
-      const botSettings = global.db?.data?.settings?.[botId] || {};
-      const botname = botSettings.namebot2 || 'Miku Wabot';
+      const botId = ((client.user?.id || client.user?.jid || '').split(':')[0] || '') + '@s.whatsapp.net'
+      const botSettings = global.db?.data?.settings?.[botId] || {}
+      const botname = botSettings.namebot2 || 'Miku Wabot'
 
-      const prefix = usedPrefix || '.';
-      const q = m.quoted || m;
-      const mime = (q.msg || q).mimetype || q.mimetype || '';
+      const prefix = usedPrefix || '.'
+      const q = m.quoted || m
+      const mime = q.mimetype || q.msg?.mimetype || ''
 
       if (!mime) {
-        return m.reply(`✐ Responde a una imagen, video o audio con *${prefix}tourl* para convertirlo en enlace.`);
+        return client.reply(
+          m.chat,
+          `✐ Responde a una imagen, video o audio con *${prefix}tourl* para convertirlo en enlace.`,
+          m
+        )
       }
 
-      const isMedia = /^(image\/(png|jpe?g|gif|webp)|video\/mp4|audio\/(mpeg|mp3|wav|ogg|opus))$/i.test(mime);
+      const isMedia = /^(image\/(png|jpe?g|gif|webp)|video\/mp4|audio\/(mpeg|mp3|wav|ogg|opus))$/i.test(mime)
 
       if (!isMedia) {
-        return m.reply('✘ Solo se permiten imágenes, videos y audios compatibles.');
+        return client.reply(
+          m.chat,
+          '✘ Solo se permiten imágenes, videos y audios compatibles.',
+          m
+        )
       }
 
       await client.sendMessage(m.chat, {
         react: { text: '🌐', key: m.key }
-      });
+      })
 
-      const media = await q.download();
+      let media = null
+      if (typeof q.download === 'function') {
+        media = await q.download()
+      } else if (typeof client.downloadMediaMessage === 'function') {
+        media = await client.downloadMediaMessage(q)
+      }
+
       if (!media) {
-        throw new Error('No se pudo descargar el archivo citado');
+        throw new Error('No se pudo descargar el archivo citado')
       }
 
-      const link = await uploadImage(media);
+      const link = await uploadImage(media)
+
       if (!link || !/^https?:\/\//i.test(link)) {
-        throw new Error('No se pudo generar el enlace');
+        throw new Error('No se pudo generar el enlace')
       }
 
-      let img = null;
+      let img = null
 
       if (/^image\//i.test(mime)) {
-        const res = await fetch(link);
+        const res = await fetch(link)
         if (!res.ok) {
-          throw new Error(`Error al descargar archivo: ${res.status}`);
+          throw new Error(`Error al descargar archivo: ${res.status}`)
         }
 
-        const arrayBuffer = await res.arrayBuffer();
-        img = Buffer.from(arrayBuffer);
+        const arrayBuffer = await res.arrayBuffer()
+        img = Buffer.from(arrayBuffer)
       }
 
-      let shortLink = 'No disponible';
-
+      let shortLink = 'No disponible'
       try {
         const shortRes = await fetch(
           `https://tinyurl.com/api-create.php?url=${encodeURIComponent(link)}`
-        );
+        )
 
         if (shortRes.ok) {
-          shortLink = (await shortRes.text()).trim() || 'No disponible';
+          shortLink = (await shortRes.text()).trim() || 'No disponible'
         }
       } catch (shortError) {
-        console.error('Error al acortar URL:', shortError);
+        console.error('Error al acortar URL:', shortError)
       }
 
       const txt = `
 ╭─〔 🌐 Enlace Generado 〕─⬣
 │ ✦ Tipo › ${mime}
-│ ✦ Tamaño › ${formatBytes(media.length)}
+│ ✦ Tamaño › ${formatBytes(media.length || 0)}
 │ ✦ Expira › Nunca
 │
 │ ✧ URL
@@ -88,7 +100,7 @@ export default {
 ╰────────────⬣
 
 ✦ ${botname}
-`.trim();
+`.trim()
 
       if (img) {
         await client.sendMessage(
@@ -98,7 +110,7 @@ export default {
             caption: txt
           },
           { quoted: m }
-        );
+        )
       } else {
         await client.sendMessage(
           m.chat,
@@ -106,20 +118,28 @@ export default {
             text: txt
           },
           { quoted: m }
-        );
+        )
       }
 
       await client.sendMessage(m.chat, {
         react: { text: '✅', key: m.key }
-      });
+      })
     } catch (e) {
-      console.error('Error en tourl:', e);
+      console.error('Error en tourl:', e)
 
-      await client.sendMessage(m.chat, {
-        react: { text: '✘', key: m.key }
-      });
+      if (m?.chat) {
+        await client.sendMessage(m.chat, {
+          react: { text: '✘', key: m.key }
+        })
 
-      return m.reply(`✘ Ocurrió un error al procesar el archivo.\n> ${e.message}`);
+        return client.reply(
+          m.chat,
+          `✘ Ocurrió un error al procesar el archivo.\n> ${e.message}`,
+          m
+        )
+      }
+
+      console.error(`✘ Ocurrió un error al procesar el archivo: ${e.message}`)
     }
   }
-};
+}
