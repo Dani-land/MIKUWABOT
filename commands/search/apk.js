@@ -1,61 +1,131 @@
 import axios from 'axios'
 
-// Headers que imitan la app oficial de APKPure para mayor compatibilidad
 const PURE_HEADERS = {
   'User-Agent': 'APKPure/3.17.26 (Linux; U; Android 11; en-US) AppleWebKit/537.36',
   'Accept': 'application/json',
 }
 
-/**
- * Intenta obtener los detalles + URL de descarga del APK desde múltiples fuentes.
- * Fuente 1: APKPure API v2 (detail + download_version) — más confiable
- * Fuente 2: tio-api.vercel.app                          — fallback original
- * Fuente 3: URL directa de APKPure                     — último recurso
- */
-async function getApkData(packageName, appFallback) {
-  // ── Fuente 1: APKPure API oficial ──────────────────────────────────────────
-  try {
-    const detailRes = await axios.get(
-      `https://api-v2.apkpure.net/v3/app_detail?pn=${encodeURIComponent(packageName)}&hl=es`,
-      { timeout: 12000, headers: PURE_HEADERS }
-    )
-    const det = detailRes.data?.data
-    const versionCode = det?.currentVersionCode
+function first(...vals) {
+  for (const v of vals) {
+    if (v === undefined || v === null) continue
+    if (typeof v === 'string' && !v.trim()) continue
+    return v
+  }
+  return null
+}
 
-    if (versionCode) {
-      const dlRes = await axios.get(
-        `https://api-v2.apkpure.net/v3/download_version?pn=${encodeURIComponent(packageName)}&versionCode=${versionCode}&hl=es`,
-        { timeout: 12000, headers: PURE_HEADERS }
+function asUrl(v) {
+  if (!v) return null
+  if (typeof v === 'string') return v
+  return v.url || v.src || v.downloadUrl || v.download_url || null
+}
+
+function normalizeApp(raw, fallback = {}) {
+  return {
+    name: first(raw?.name, raw?.title, fallback.name, 'APK'),
+    packageName: first(raw?.package_name, raw?.packageName, raw?.pn, raw?.pkg, fallback.packageName),
+    version: first(raw?.currentVersionName, raw?.version, raw?.versionName, 'Latest'),
+    size: first(raw?.size, raw?.file_size, raw?.fileSize, '—'),
+    icon: asUrl(first(raw?.icon, raw?.logo, fallback.icon)),
+    pageUrl: first(raw?.url, raw?.link, raw?.detail_url, raw?.detailUrl, null),
+    raw,
+  }
+}
+
+function pickSearchItem(data) {
+  const d = data?.data
+
+  if (Array.isArray(d) && d.length) return d[0]
+  if (Array.isArray(d?.list) && d.list.length) return d.list[0]
+  if (Array.isArray(d?.results) && d.results.length) return d.results[0]
+  if (Array.isArray(data?.results) && data.results.length) return data.results[0]
+  if (Array.isArray(data?.list) && data.list.length) return data.list[0]
+  if (d && typeof d === 'object') return d
+
+  return null
+}
+
+async function getApkData(packageName, appFallback) {
+  const detailEndpoints = [
+    `https://api-v2.apkpure.net/v3/app_detail?pn=${encodeURIComponent(packageName)}&hl=es`,
+    `https://api-v2.apkpure.net/v3/app_detail?pn=${encodeURIComponent(packageName)}`
+  ]
+
+  for (const detailUrl of detailEndpoints) {
+    try {
+      const detailRes = await axios.get(detailUrl, {
+        timeout: 12000,
+        headers: PURE_HEADERS
+      })
+
+      const detRaw = detailRes.data?.data || detailRes.data?.app || detailRes.data?.result || detailRes.data
+      const det = normalizeApp(detRaw, { ...appFallback, packageName })
+
+      const versionCode = first(
+        detRaw?.currentVersionCode,
+        detRaw?.versionCode,
+        detRaw?.latestVersionCode,
+        detRaw?.version_code
       )
-      const asset = dlRes.data?.data?.assets?.[0]
-      if (asset?.url) {
-        return {
-          name:     det.title      || appFallback.name,
-          version:  det.currentVersionName || 'Latest',
-          size:     asset.size ? `${(asset.size / 1024 / 1024).toFixed(1)} MB` : '—',
-          icon:     det.icon?.url  || appFallback.icon,
-          download: asset.url,
+
+      if (versionCode) {
+        const downloadEndpoints = [
+          `https://api-v2.apkpure.net/v3/download_version?pn=${encodeURIComponent(packageName)}&versionCode=${encodeURIComponent(versionCode)}&hl=es`,
+          `https://api-v2.apkpure.net/v3/download_version?pn=${encodeURIComponent(packageName)}&versionCode=${encodeURIComponent(versionCode)}`
+        ]
+
+        for (const dlUrl of downloadEndpoints) {
+          try {
+            const dlRes = await axios.get(dlUrl, {
+              timeout: 12000,
+              headers: PURE_HEADERS
+            })
+
+            const assetsRaw =
+              dlRes.data?.data?.assets ||
+              dlRes.data?.assets ||
+              dlRes.data?.data?.downloads ||
+              dlRes.data?.downloads ||
+              []
+
+            const asset = Array.isArray(assetsRaw) ? assetsRaw[0] : assetsRaw
+            const downloadUrl = asUrl(first(asset?.url, asset?.downloadUrl, asset?.download_url))
+
+            if (downloadUrl) {
+              const sizeBytes = first(asset?.size, asset?.fileSize, asset?.filesize)
+              return {
+                name: det.name || appFallback.name,
+                version: first(det.version, detRaw?.currentVersionName, 'Latest'),
+                size: sizeBytes ? `${(Number(sizeBytes) / 1024 / 1024).toFixed(1)} MB` : '—',
+                icon: det.icon || appFallback.icon,
+                download: downloadUrl,
+                pageUrl: det.pageUrl || appFallback.pageUrl || null
+              }
+            }
+          } catch {}
         }
       }
-    }
-  } catch {}
 
-  // ── Fuente 2: tio-api (original) ───────────────────────────────────────────
-  try {
-    const res = await axios.get(
-      `https://tio-api.vercel.app/apk?query=${encodeURIComponent(packageName)}`,
-      { timeout: 10000 }
-    )
-    if (res.data?.download) return res.data
-  } catch {}
+      if (det.pageUrl) {
+        return {
+          name: det.name || appFallback.name,
+          version: first(det.version, detRaw?.currentVersionName, 'Latest'),
+          size: '—',
+          icon: det.icon || appFallback.icon,
+          download: det.pageUrl,
+          pageUrl: det.pageUrl
+        }
+      }
+    } catch {}
+  }
 
-  // ── Fuente 3: URL directa de APKPure (redirect al APK más reciente) ────────
   return {
-    name:     appFallback.name,
-    version:  'Latest',
-    size:     '—',
-    icon:     appFallback.icon,
-    download: `https://d.apkpure.net/b/apk/${packageName}?version=latest`,
+    name: appFallback.name,
+    version: 'Latest',
+    size: '—',
+    icon: appFallback.icon,
+    download: `https://d.apkpure.net/b/apk/${encodeURIComponent(packageName)}?version=latest`,
+    pageUrl: null
   }
 }
 
@@ -71,40 +141,56 @@ export default {
     const query = args.join(' ').trim()
 
     try {
-      // Búsqueda de aplicación en APKPure
       const searchRes = await axios.get(
         `https://api-v1.apkpure.net/v3/search_suggestion?q=${encodeURIComponent(query)}`,
         { timeout: 10000, headers: PURE_HEADERS }
       )
 
-      const app = searchRes.data?.data?.[0]
-      if (!app) return m.reply('✘ No encontré ninguna aplicación con ese nombre.')
+      const appRaw = pickSearchItem(searchRes.data)
+      if (!appRaw) {
+        return m.reply('✘ No encontré ninguna aplicación con ese nombre.')
+      }
 
-      await m.reply('⏳ Obteniendo APK, espera un momento...')
+      const app = normalizeApp(appRaw)
+      if (!app.packageName) {
+        return m.reply('✘ No pude obtener el paquete de la app.')
+      }
 
-      const data = await getApkData(app.package_name, { name: app.name, icon: app.icon })
+      const data = await getApkData(app.packageName, {
+        name: app.name,
+        icon: app.icon,
+        packageName: app.packageName,
+        pageUrl: app.pageUrl
+      })
 
       if (!data?.download) {
         return m.reply('✘ No se pudo obtener el enlace de descarga. Intenta de nuevo.')
       }
 
       const caption = [
-        `✦ *${data.name || app.name}*\n`,
-        `✧ Paquete  › \`${app.package_name}\``,
+        `✦ *${data.name || app.name}*`,
+        `✧ Paquete  › \`${app.packageName}\``,
         `✧ Versión  › *${data.version || 'Desconocida'}*`,
-        `✧ Tamaño   › *${data.size || 'Desconocido'}*\n`,
-        `✐ Enviando APK...`,
+        `✧ Tamaño   › *${data.size || 'Desconocido'}*`,
+        `✐ Enviando APK...`
       ].join('\n')
 
-      // Miniatura + info
-      await client.sendMessage(
-        m.chat,
-        { image: { url: data.icon || app.icon }, caption },
-        { quoted: m }
-      )
+      if (data.icon) {
+        await client.sendMessage(
+          m.chat,
+          { image: { url: data.icon }, caption },
+          { quoted: m }
+        )
+      } else {
+        await client.sendMessage(
+          m.chat,
+          { text: caption },
+          { quoted: m }
+        )
+      }
 
-      // Archivo APK
-      const safeName = (data.name || app.name).replace(/[^\w\s\-]/gi, '').trim()
+      const safeName = (data.name || app.name).replace(/[^\w\s\-]/gi, '').trim() || 'app'
+
       await client.sendMessage(
         m.chat,
         {
@@ -114,7 +200,6 @@ export default {
         },
         { quoted: m }
       )
-
     } catch (e) {
       console.error('[APK]', e?.message || e)
       m.reply('❌ Error al procesar la solicitud. Intenta de nuevo.')
