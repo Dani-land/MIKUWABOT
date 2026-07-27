@@ -81,7 +81,6 @@ class SaveTube {
   }
 }
 
-// Nueva API principal (rápida, pública y gratis - basada en servicios estables actuales)
 const VEVO_API_BASE = 'https://api.vevioz.com'
 
 const isYTUrl = (url) =>
@@ -144,67 +143,13 @@ const fetchParallelFirstValid = async (url, apis, timeout = 45000) => {
   })
 }
 
-async function getBufferFromUrl(url) {
-  const res = await fetch(url, {
-    redirect: 'follow'
-  })
-
-  if (!res.ok) {
-    throw new Error(`No se pudo descargar el archivo (${res.status})`)
-  }
-
-  const arrayBuffer = await res.arrayBuffer()
-  return Buffer.from(arrayBuffer)
-}
-
-async function sendPlayableVideo(client, m, dl, title, thumbBuffer) {
-  const fileName = `${title}.mp4`
-
-  try {
-    const buffer = await getBufferFromUrl(dl)
-
-    await client.sendMessage(
-      m.chat,
-      {
-        video: buffer,
-        mimetype: 'video/mp4',
-        fileName,
-        ptv: false,
-        caption: `✦ ${title}`,
-        jpegThumbnail: thumbBuffer || undefined
-      },
-      { quoted: m }
-    )
-
-    return
-  } catch (e) {
-    console.log('Video buffer falló, usando URL directa:', e.message)
-  }
-
-  await client.sendMessage(
-    m.chat,
-    {
-      video: { url: dl },
-      mimetype: 'video/mp4',
-      fileName,
-      ptv: false,
-      caption: `✦ ${title}`,
-      jpegThumbnail: thumbBuffer || undefined
-    },
-    { quoted: m }
-  )
-}
-
 export default {
   command: [
-    'play',
-    'mp3',
-    'playaudio',
-    'ytmp3',
-    'play2',
-    'mp4',
-    'playvideo',
-    'ytmp4'
+    'playdoc',
+    'playdocumento',
+    'ytmp3doc',
+    'ytmp4doc',
+    'playdoc2'
   ],
 
   category: 'downloader',
@@ -235,7 +180,7 @@ export default {
         ;({ title, url } = videoInfo)
 
         const info = `
-✿ Descargando...
+✿ Descargando documento...
 
 ⌗» Título › ${title}
 ⌗» Duración › ${videoInfo.duration}
@@ -273,26 +218,22 @@ export default {
       }
 
       const isAudio = [
-        'play',
-        'mp3',
-        'playaudio',
-        'ytmp3'
+        'playdoc',
+        'playdocumento',
+        'ytmp3doc'
       ].includes(command)
 
-      // Nueva API principal (rápida y estable)
       const vevioApi = {
         custom: true,
         run: async (videoUrl) => {
           const type = isAudio ? 'mp3' : 'videos'
-          // Endpoint simple para obtener link directo
-          const apiUrl = `\( {VEVO_API_BASE}/api/single/ \){type}?url=${encodeURIComponent(videoUrl)}`
+          const apiUrl = `${VEVO_API_BASE}/api/single/${type}?url=${encodeURIComponent(videoUrl)}`
           
           const res = await fetch(apiUrl)
           if (!res.ok) throw new Error('Vevioz falló')
           
           const json = await res.json()
           
-          // Adaptar respuesta (ajusta según estructura real de Vevioz)
           return {
             dl: json?.result?.download_url || json?.download_url || json?.url,
             title: json?.result?.title || json?.title || title
@@ -303,8 +244,8 @@ export default {
       const senkoApi = {
         url: (u) =>
           isAudio
-            ? `\( {SENKO_API}/api/audio?url= \){encodeURIComponent(u)}`
-            : `\( {SENKO_API}/api/video?url= \){encodeURIComponent(u)}`,
+            ? `https://api.senko.my.id/api/audio?url=${encodeURIComponent(u)}`
+            : `https://api.senko.my.id/api/video?url=${encodeURIComponent(u)}`,
 
         validate: (r) =>
           r?.download || r?.url || r?.result?.url || r?.data?.url,
@@ -351,52 +292,30 @@ export default {
         } catch {}
       }
 
+      const finalTitle = apiTitle || title
+
       if (isAudio) {
         await client.sendMessage(
           m.chat,
           {
             document: { url: dl },
             mimetype: 'audio/mpeg',
-            fileName: `${apiTitle || title}.mp3`,
+            fileName: `${finalTitle}.mp3`,
             jpegThumbnail: thumbBuffer || undefined
           },
           { quoted: m }
         )
       } else {
-        let exceedsLimit = false
-
-        try {
-          const head = await fetch(dl, { method: 'HEAD' })
-          const contentLength = head.headers.get('content-length')
-
-          const fileSize = contentLength
-            ? parseInt(contentLength) / (1024 * 1024)
-            : 0
-
-          exceedsLimit = fileSize >= limit
-        } catch {
-          exceedsLimit = true
-        }
-
-        if (exceedsLimit) {
-          await client.sendMessage(
-            m.chat,
-            {
-              document: { url: dl },
-              fileName: `${apiTitle || title}.mp4`,
-              mimetype: 'video/mp4'
-            },
-            { quoted: m }
-          )
-        } else {
-          await sendPlayableVideo(
-            client,
-            m,
-            dl,
-            apiTitle || title,
-            thumbBuffer
-          )
-        }
+        await client.sendMessage(
+          m.chat,
+          {
+            document: { url: dl },
+            mimetype: 'video/mp4',
+            fileName: `${finalTitle}.mp4`,
+            jpegThumbnail: thumbBuffer || undefined
+          },
+          { quoted: m }
+        )
       }
     } catch (e) {
       console.log(e)
@@ -408,4 +327,4 @@ export default {
       )
     }
   }
-}
+      }
