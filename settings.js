@@ -8,13 +8,13 @@ global.pairing_code = true
 global.number_bot = ''
 
 global.api = {
-  url: 'https://api.yuki-wabot.my.id',
-  key: 'api-tmzcN'
+  url: 'https://senko-apiserverg5.onrender.com',
+  key: 'null'
 }
 
 global.bot = {
   api: 'https://senko-apiserverg5.onrender.com/',
-  web: 'https://senko-apiserverg5.onrender.com'
+  web: 'https://github.com/Dani-land/MIKUWABOT.git'
 }
 
 global.prefa = '/'
