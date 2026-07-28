@@ -33,8 +33,6 @@ let user = globalThis.db.data.chats[m.chat].users[m.sender]
 
   if (isNaN(cantidad) || cantidad <= 199)
     return m.reply(`ꕥ La apuesta mínima es de *200 ${monedas}*.\nEjemplo: *${prefa + command} 200 cara*`)
-if (isNaN(cantidad) || cantidad >= 5001)
-    return m.reply(`ꕥ La apuesta máxima es de *5000 ${monedas}*.\nEjemplo: *${prefa + command} 5000 cara*`)
 
   if (!user || user.coins === undefined) user.coins = 0
 
