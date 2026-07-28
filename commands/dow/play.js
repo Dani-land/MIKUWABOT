@@ -297,16 +297,6 @@ export default {
 
       const bodyText = `✿ *${title}*\n\n⌗» Duración › ${videoInfo.duration}\n⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}\n⌗» Canal › ${videoInfo.author?.name || 'Desconocido'}\n⌗» Publicado › ${videoInfo.ago || 'Desconocido'}\n\n✧ Selecciona una opción del menú:`
 
-      let media = null
-      if (videoInfo.thumbnail) {
-        try {
-          media = await prepareWAMessageMedia(
-            { image: { url: videoInfo.thumbnail } },
-            { upload: conn.waUploadToServer }
-          )
-        } catch {}
-      }
-
       const rows = [
         {
           title: '🎬 Video (MP4)',
@@ -330,18 +320,32 @@ export default {
         },
       ]
 
+      let media = null
+      if (videoInfo.thumbnail) {
+        try {
+          media = await prepareWAMessageMedia(
+            { image: { url: videoInfo.thumbnail } },
+            { upload: conn.waUploadToServer }
+          )
+        } catch (e) {
+          console.log('Error preparando imagen media:', e)
+        }
+      }
+
       const interactive = proto.Message.InteractiveMessage.fromObject({
-        body: { text: bodyText },
-        footer: { text: 'Toca el botón para elegir' },
-        ...(media
-          ? {
-              header: {
-                hasMediaAttachment: true,
-                imageMessage: media.imageMessage,
-              },
-            }
-          : {}),
-        nativeFlowMessage: {
+        body: proto.Message.InteractiveMessage.Body.fromObject({
+          text: bodyText,
+        }),
+        footer: proto.Message.InteractiveMessage.Footer.fromObject({
+          text: 'Toca el botón para elegir',
+        }),
+        header: proto.Message.InteractiveMessage.Header.fromObject({
+          title: '',
+          subtitle: '',
+          hasMediaAttachment: !!media,
+          ...(media ? { imageMessage: media.imageMessage } : {}),
+        }),
+        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
           buttons: [
             {
               name: 'single_select',
@@ -357,21 +361,22 @@ export default {
               }),
             },
           ],
-        },
+        }),
         contextInfo: {
           mentionedJid: [m.sender],
         },
       })
 
-      const msg = generateWAMessageFromContent(
-        m.chat,
-        {
-          interactiveMessage: interactive,
+      const messageContent = proto.Message.fromObject({
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: interactive,
+          },
         },
-        { quoted: m }
-      )
+      })
 
-      await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id })
+      await conn.relayMessage(m.chat, messageContent, { messageId: m.key.id ? m.key.id + '_yt' : undefined })
+
       if (m.react) await m.react('✔️')
     } catch (e) {
       console.log(e)
@@ -379,4 +384,4 @@ export default {
       m.reply(`✘ Error detectado.\n\n⌗» ${e.message}`)
     }
   },
-      }
+}
