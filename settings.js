@@ -8,8 +8,8 @@ global.pairing_code = true
 global.number_bot = ''
 
 global.api = {
-  url: 'https://api.stellarwa.xyz',
-  key: 'api-wXCo4'
+  url: 'https://api.yuki-wabot.my.id',
+  key: 'api-tmzcN'
 }
 
 global.bot = {
