@@ -1,13 +1,60 @@
-import fetch from 'node-fetch';
+import fetch from 'node-fetch'
 
-const SENKO_API = 'https://senko-apiserverg5.onrender.com'
+const IG_API_URL = 'https://api.lempi.lat/dl/ig'
+const IG_API_KEY = 'lem715'
+
+async function resolveInstagram(url) {
+  const apiUrl = IG_API_KEY
+    ? `${IG_API_URL}?url=${encodeURIComponent(url)}&apikey=${IG_API_KEY}`
+    : `${IG_API_URL}?url=${encodeURIComponent(url)}`
+
+  const res = await fetch(apiUrl)
+  const text = await res.text()
+
+  if (!res.ok) {
+    throw new Error(`API Instagram HTTP ${res.status}: ${text.slice(0, 200)}`)
+  }
+
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch {
+    throw new Error(`Respuesta inválida de la API: ${text.slice(0, 200)}`)
+  }
+
+  const media =
+    json?.download ||
+    json?.dl ||
+    json?.url ||
+    json?.result?.download ||
+    json?.result?.url ||
+    json?.data?.download ||
+    json?.data?.url ||
+    json?.media?.url ||
+    json?.mediaUrls?.[0]
+
+  if (!media) {
+    throw new Error(json?.message || 'La API no devolvió un link de descarga.')
+  }
+
+  const type =
+    (json?.type || json?.data?.type || '').includes('video') ? 'video' : 'image'
+
+  const title =
+    json?.title || json?.username || json?.author || json?.data?.username || 'Instagram'
+
+  const like = json?.like || json?.likes || json?.data?.like || json?.data?.likes || null
+  const comment =
+    json?.comment || json?.comments || json?.data?.comment || json?.data?.comments || null
+
+  return { media, type, title, like, comment }
+}
 
 export default {
   command: ['instagram', 'ig'],
   category: 'downloader',
 
-  run: async ({client, m, args, command}) => {
-
+  run: async ({ client, m, args }) => {
     const url = args[0]
 
     if (!url) {
@@ -19,88 +66,27 @@ export default {
     }
 
     try {
+      const { media, type, title, like, comment } = await resolveInstagram(url)
 
-      const res = await fetch(
-        `${SENKO_API}/api/instagram?url=${encodeURIComponent(url)}`
-      )
-
-      const json = await res.json()
-
-      console.log('SENKO IG RESPONSE:', json)
-
-      const media =
-        json?.download ||
-        json?.dl ||
-        json?.url ||
-        json?.result?.download ||
-        json?.result?.url ||
-        json?.data?.download ||
-        json?.data?.url ||
-        json?.media?.url ||
-        json?.mediaUrls?.[0]
-
-      if (!media) {
-        return client.reply(
-          m.chat,
-          'ꕥ No se pudo *obtener* el contenido de Instagram',
-          m
-        )
-      }
-
-      const type =
-        (json?.type || json?.data?.type || '').includes('video')
-          ? 'video'
-          : 'image'
-
-      const title =
-        json?.title ||
-        json?.username ||
-        json?.author ||
-        json?.data?.username ||
-        'Instagram'
-
-      const like =
-        json?.like ||
-        json?.likes ||
-        json?.data?.like ||
-        json?.data?.likes ||
-        null
-
-      const comment =
-        json?.comment ||
-        json?.comments ||
-        json?.data?.comment ||
-        json?.data?.comments ||
-        null
-
-      const caption =
-        `*INSTAGRAM*
+      const caption = `*INSTAGRAM*
 
 ✰ *Titulo* › ${title}
 ✿ *Likes* › ${like || 'N/A'}
 ✰ *Comentarios* › ${comment || 'N/A'}
 ✿ *Tipo* › ${type}
-✰ *Enlace* › ${url}\n♡ *Api:* » https://senko-apiserverg5.onrender.com/
-`.trim()
+✰ *Enlace* › ${url}`.trim()
 
       await client.sendMessage(
         m.chat,
         {
           [type]: { url: media },
-          caption
+          caption,
         },
         { quoted: m }
       )
-
     } catch (e) {
-
-      console.log(e)
-
-      await client.reply(
-        m.chat,
-        'ꕥ Error al procesar Instagram (Senko API falló)',
-        m
-      )
+      console.log('[instagram]', e.message)
+      await client.reply(m.chat, 'ꕥ No se pudo obtener el contenido de Instagram.', m)
     }
-  }
-};
+  },
+}
