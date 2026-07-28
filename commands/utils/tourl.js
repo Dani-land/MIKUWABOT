@@ -8,6 +8,20 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
 }
 
+const extByMime = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'video/mp4': 'mp4',
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/ogg': 'ogg',
+  'audio/opus': 'ogg',
+}
+
 export default {
   command: ['tourl'],
   category: 'utils',
@@ -55,7 +69,10 @@ export default {
         throw new Error('No se pudo descargar el archivo citado')
       }
 
-      const link = await uploadImage(media)
+      const ext = extByMime[mime.toLowerCase()] || 'bin'
+      const filename = `tourl_${Date.now()}.${ext}`
+
+      const link = await uploadImage(media, filename)
 
       if (!link || !/^https?:\/\//i.test(link)) {
         throw new Error('No se pudo generar el enlace')
@@ -64,13 +81,7 @@ export default {
       let img = null
 
       if (/^image\//i.test(mime)) {
-        const res = await fetch(link)
-        if (!res.ok) {
-          throw new Error(`Error al descargar archivo: ${res.status}`)
-        }
-
-        const arrayBuffer = await res.arrayBuffer()
-        img = Buffer.from(arrayBuffer)
+        img = media
       }
 
       let shortLink = 'No disponible'
