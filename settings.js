@@ -24,4 +24,4 @@ global.mods = [
 ]
 
 global.msgglobal = 'Hubo un error use el comando /reporte <problema> para avisarle a nuestros desarrolladores.'
-globalThis.dev = '© ⍴᥆ᥕᥱrᥱძ ᑲᥡ ☕︎Danielrxz'
+globalThis.dev = '♡ ⍴᥆ᥕᥱrᥱძ ᑲᥡ ᗪᥲᥒіᥱᥣᖇ᙭乙 ♡'
