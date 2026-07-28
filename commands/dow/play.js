@@ -261,6 +261,8 @@ export default {
         return (conn.reply || conn.sendMessage)(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
       }
 
+      if (m.react) await m.react('⏱️')
+
       const esURL = isYTUrl(text)
 
       const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3', 'playdoc'].includes(command)
@@ -279,11 +281,14 @@ export default {
           title = 'Video'
         }
 
-        return sendResult({ client: conn, m, url, title, videoInfo, isAudio, asDocument })
+        await sendResult({ client: conn, m, url, title, videoInfo, isAudio, asDocument })
+        if (m.react) await m.react('✔️')
+        return
       }
 
       const search = await yts(text)
       if (!search.all.length) {
+        if (m.react) await m.react('✖️')
         return m.reply('ꕥ No encontré resultados.')
       }
 
@@ -327,7 +332,7 @@ export default {
 
       const interactive = proto.Message.InteractiveMessage.fromObject({
         body: { text: bodyText },
-        footer: { text: 'Toca el botón de abajo para elegir' },
+        footer: { text: 'Toca el botón para elegir' },
         ...(media
           ? {
               header: {
@@ -361,17 +366,17 @@ export default {
       const msg = generateWAMessageFromContent(
         m.chat,
         {
-          viewOnceMessage: {
-            message: { interactiveMessage: interactive },
-          },
+          interactiveMessage: interactive,
         },
         { quoted: m }
       )
 
       await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id })
+      if (m.react) await m.react('✔️')
     } catch (e) {
       console.log(e)
+      if (m.react) await m.react('✖️')
       m.reply(`✘ Error detectado.\n\n⌗» ${e.message}`)
     }
   },
-}
+      }
