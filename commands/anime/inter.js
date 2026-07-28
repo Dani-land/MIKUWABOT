@@ -1,4 +1,7 @@
-import fetch from 'node-fetch';
+import fetch from 'node-fetch'
+
+const API_URL = 'https://api.yuki-wabot.my.id/sfw/interaction'
+const API_KEY = 'api-tmzcN'
 
 const captions = {
   peek: (from, to, genero) =>
@@ -306,23 +309,27 @@ export default {
 
     try {
       const response = await fetch(
-        `${api.url}/sfw/interaction?inter=${currentCommand}&key=${api.key}`,
+        `${API_URL}?inter=${currentCommand}&apikey=${API_KEY}`,
       )
       const json = await response.json()
-      const { result } = json
+
+      if (!json?.status || !json?.result) {
+        throw new Error(json?.message || 'La API no devolvió un resultado válido.')
+      }
 
       await client.sendMessage(
         m.chat,
         {
-          video: { url: result },
+          video: { url: json.result },
           gifPlayback: true,
           caption,
           mentions: [who, m.sender],
         },
         { quoted: m },
       )
-    } catch {
-      await m.reply(msgglobal)
+    } catch (e) {
+      console.log('[interaction]', e.message)
+      await m.reply('✘ No se pudo obtener la imagen/gif de esa interacción, intenta de nuevo.')
     }
   },
 };
