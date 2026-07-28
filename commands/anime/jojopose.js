@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 
-const TENOR_API_KEY = 'INGRESA_TU_KEY_SI_ERES_DE_TERMUX'
-const TENOR_SEARCH_URL = 'https://tenor.googleapis.com/v2/search'
+const GIPHY_API_KEY = '4CCGapxUxxzSFfexbfoKyd9q3fmrpVYE'
+const GIPHY_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search'
 
 const symbols = [
   '(⁠◠⁠‿⁠◕⁠)', '˃͈◡˂͈', '(*≧ω≦)', '(✧ω✧)', 'ʕ•́ᴥ•̀ʔっ', '(¬‿¬)',
@@ -13,37 +13,36 @@ function getRandomSymbol() {
 
 async function getRandomJojoPose() {
   const params = new URLSearchParams({
+    api_key: GIPHY_API_KEY,
     q: 'jojo pose',
-    key: TENOR_API_KEY,
-    client_key: 'jojopose_bot',
     limit: '50',
-    media_filter: 'gif,mp4,tinygif',
-    contentfilter: 'medium',
+    rating: 'pg-13',
+    lang: 'es',
   })
 
-  const res = await fetch(`${TENOR_SEARCH_URL}?${params.toString()}`)
+  const res = await fetch(`${GIPHY_SEARCH_URL}?${params.toString()}`)
 
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Tenor HTTP ${res.status}: ${text.slice(0, 200)}`)
+    throw new Error(`Giphy HTTP ${res.status}: ${text.slice(0, 200)}`)
   }
 
   const json = await res.json()
-  const results = json?.results
+  const results = json?.data
 
   if (!Array.isArray(results) || !results.length) {
-    throw new Error('Tenor no devolvió resultados de JoJo pose.')
+    throw new Error('Giphy no devolvió resultados de JoJo pose.')
   }
 
   const pick = results[Math.floor(Math.random() * results.length)]
 
   const gifUrl =
-    pick?.media_formats?.mp4?.url ||
-    pick?.media_formats?.gif?.url ||
-    pick?.media_formats?.tinygif?.url
+    pick?.images?.original?.mp4 ||
+    pick?.images?.downsized_medium?.url ||
+    pick?.images?.original?.url
 
   if (!gifUrl) {
-    throw new Error('No se encontró un link de GIF válido en la respuesta de Tenor.')
+    throw new Error('No se encontró un link de GIF válido en la respuesta de Giphy.')
   }
 
   return gifUrl
