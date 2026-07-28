@@ -88,7 +88,7 @@ export default {
       }\n`
 
     menu += `✐ *Plugins ›* ${plugins}\n`
-    menu += `✐ *Versión ›* 3.0.0\n`
+    menu += `✐ *Versión ›* 3.1.9\n`
     menu += `✐ *Link ›* ${link}\n\n`
 
     menu += `✐ *Fecha ›* ${tiempo}, ${tiempo2}\n`
