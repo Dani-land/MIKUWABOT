@@ -7,180 +7,174 @@ import { commands } from '../../lib/commands.js'
 export default {
   command: ['menu', 'help'],
   category: 'info',
-  run: async ({client, m, text, args, usedPrefix}) => {
-  try {
-  
-    const cmdsList = commands
-    let now = new Date()
 
-    let colombianTime = new Date(
-      now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
-    )
+  run: async ({ client, m, text = '', args = [], usedPrefix = '.' }) => {
+    try {
+      const cmdsList = Array.isArray(commands) ? commands : []
 
-    let tiempo = colombianTime.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).replace(/,/g, '')
+      const now = new Date()
+      const colombianTime = new Date(
+        now.toLocaleString('en-US', { timeZone: 'America/Bogota' })
+      )
 
-    let tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      const tiempo = colombianTime
+        .toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+        .replace(/,/g, '')
 
-    let plugins = commands.length
+      const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      const plugins = cmdsList.length
 
-    const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
+      const botId = ((client.user?.id || '').split(':')[0] || '') + '@s.whatsapp.net'
+      const botSettings = global.db?.data?.settings?.[botId] || {}
 
-    let botSettings = global.db.data.settings[botId]
+      const botname = botSettings.namebot || 'Miku Wabot'
+      const botname2 = botSettings.namebot2 || 'Miku Wabot'
+      const banner = botSettings.banner || null
 
-    let botname = botSettings.namebot
-    let botname2 = botSettings.namebot2
-    let banner = botSettings.banner
+      const owner = botSettings.owner || ''
+      const canalId = botSettings.id || ''
+      const canalName = botSettings.nameid || ''
+      const link = botSettings.link || 'Sin enlace'
 
-    const owner = botSettings.owner
-    const canalId = botSettings.id
-    const canalName = botSettings.nameid
-    const link = botSettings.link
-
-    let desar = "Oculto";
-
-    if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
-      const userData = global.db.data.users[owner];
-      desar = userData?.genre || "Oculto";
-    }
-
-    const jam = moment
-      .tz('America/Bogota')
-      .locale('id')
-      .format('HH:mm:ss')
-
-    const ucapan =
-      jam < '05:00:00'
-        ? 'Buen día'
-        : jam < '11:00:00'
-        ? 'Buen día'
-        : jam < '15:00:00'
-        ? 'Buenas tardes'
-        : jam < '18:00:00'
-        ? 'Buenas tardes'
-        : jam < '23:59:00'
-        ? 'Buenas noches'
-        : 'Buenas noches';
-
-    let menu = `\n\n`
-
-    menu += `꒰ 🌸 ꒱ 𝐇𝐚𝐭𝐬𝐮𝐧𝐞 𝐌𝐢𝐤𝐮 𝐁𝐨𝐭\n`
-    menu += `••••••••••••••••••••••••••••••••••\n`
-    menu += `> ${ucapan} *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
-
-    menu += `୨୧ ───────────── ୨୧\n`
-    menu += `✦ 𝐌𝐢𝐤𝐮 𝐖𝐚𝐛𝐨𝐭 ✦\n`
-    menu += `୨୧ ───────────── ୨୧\n`
-
-    menu += `✐ *${desar === 'Hombre'
-      ? 'Creador'
-      : desar === 'Mujer'
-      ? 'Creadora'
-      : 'Creador(a)'} ›* ${
-        owner
-          ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))
-            ? `@${owner.split('@')[0]}`
-            : owner)
-          : "Oculto por privacidad"
-      }\n`
-
-    menu += `✐ *Plugins ›* ${plugins}\n`
-    menu += `✐ *Versión ›* 3.1.9\n`
-    menu += `✐ *Link ›* ${link}\n\n`
-
-    menu += `✐ *Fecha ›* ${tiempo}, ${tiempo2}\n`
-    menu += `✐ *Users ›* ${Object.keys(global.db.data.users).length.toLocaleString()}\n`
-
-    menu += `୨୧ ───────────── ୨୧\n`
-
-    const categoryArg = args[0]?.toLowerCase();
-    const categories = {};
-
-    for (const command of cmdsList) {
-      const category = command.category || 'otros';
-
-      if (!categories[category]) {
-        categories[category] = [];
+      let desar = 'Oculto'
+      if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
+        const userData = global.db?.data?.users?.[owner]
+        desar = userData?.genre || 'Oculto'
       }
 
-      categories[category].push(command);
-    }
+      const jam = moment.tz('America/Bogota').format('HH:mm:ss')
 
-    if (categoryArg && !categories[categoryArg]) {
-      return m.reply(
-        `✘ La categoría *${categoryArg}* no fue encontrada.\n\n` +
-        `✦ Categorías disponibles:\n` +
-        `${Object.keys(categories).map(c => `• ${c}`).join('\n')}`
-      );
-    }
+      const ucapan =
+        jam < '05:00:00'
+          ? 'Buen día'
+          : jam < '11:00:00'
+          ? 'Buen día'
+          : jam < '15:00:00'
+          ? 'Buenas tardes'
+          : jam < '18:00:00'
+          ? 'Buenas tardes'
+          : 'Buenas noches'
 
-    for (const [category, cmds] of Object.entries(categories)) {
+      let menu = `\n\n`
 
-      if (categoryArg && category.toLowerCase() !== categoryArg) {
-        continue;
-      }
+      menu += `꒰ 🌸 ꒱ 𝐇𝐚𝐭𝐬𝐮𝐧𝐞 𝐌𝐢𝐤𝐮 𝐁𝐨𝐭\n`
+      menu += `••••••••••••••••••••••••••••••••••\n`
+      menu += `> ${ucapan} *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
 
-      const catName =
-        category.charAt(0).toUpperCase() + category.slice(1)
+      menu += `୨୧ ───────────── ୨୧\n`
+      menu += `✦ 𝐌𝐢𝐤𝐮 𝐖𝐚𝐛𝐨𝐭 ✦\n`
+      menu += `୨୧ ───────────── ୨୧\n`
 
-      menu += `\n`
-      menu += `╭─❀「 ${catName} 」\n`
+      menu += `✐ *${desar === 'Hombre'
+        ? 'Creador'
+        : desar === 'Mujer'
+        ? 'Creadora'
+        : 'Creador(a)'} ›* ${
+          owner
+            ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))
+              ? `@${owner.split('@')[0]}`
+              : owner)
+            : 'Oculto por privacidad'
+        }\n`
 
-      cmds.forEach(cmd => {
+      menu += `✐ *Plugins ›* ${plugins}\n`
+      menu += `✐ *Versión ›* 3.1.9\n`
+      menu += `✐ *Link ›* ${link}\n\n`
 
-        const match = usedPrefix.match(/[#\/+.!-]$/);
+      menu += `✐ *Fecha ›* ${tiempo}, ${tiempo2}\n`
+      menu += `✐ *Users ›* ${Object.keys(global.db?.data?.users || {}).length.toLocaleString()}\n`
 
-        const separator = match ? match[0] : '';
+      menu += `୨୧ ───────────── ୨୧\n`
 
-        const cleanPrefix = separator ? separator : usedPrefix;
+      const categoryArg = args[0]?.toLowerCase()
+      const categories = {}
 
-        const aliases = (cmd.alias || cmd.command || [])
-          .map(a => {
-            const aliasClean = a
-              .split(/[\/#!+.\-]+/)
-              .pop()
-              .toLowerCase();
+      for (const command of cmdsList) {
+        const category = command.category || 'otros'
 
-            return `${cleanPrefix}${aliasClean}`;
-          })
-          .join(' › ');
-
-        menu += `│ ✦ *${aliases}* ${cmd.uso ? `+ ${cmd.uso}` : ''}\n`
-
-        if (cmd.desc) {
-          menu += `│ ◦ _${cmd.desc}_\n`
+        if (!categories[category]) {
+          categories[category] = []
         }
 
-        menu += `│\n`
-      });
+        categories[category].push(command)
+      }
 
-      menu += `╰────────────❀\n`
-    }
+      if (categoryArg && !categories[categoryArg]) {
+        return m.reply(
+          `✘ La categoría *${categoryArg}* no fue encontrada.\n\n` +
+          `✦ Categorías disponibles:\n` +
+          `${Object.keys(categories).map(c => `• ${c}`).join('\n')}`
+        )
+      }
 
-    await client.sendMessage(
-      m.chat,
-      {
-        image: { url: banner },
-        caption: menu.trim(),
-        contextInfo: {
-          mentionedJid: [owner],
-          forwardingScore: 999,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: canalId,
-            newsletterName: canalName,
-            serverMessageId: -1,
+      const prefix = typeof usedPrefix === 'string' && usedPrefix.length ? usedPrefix : '.'
+
+      for (const [category, cmds] of Object.entries(categories)) {
+        if (categoryArg && category.toLowerCase() !== categoryArg) continue
+
+        const catName = category.charAt(0).toUpperCase() + category.slice(1)
+
+        menu += `\n`
+        menu += `╭─❀「 ${catName} 」\n`
+
+        cmds.forEach(cmd => {
+          const aliases = (Array.isArray(cmd.alias) ? cmd.alias : cmd.command || [])
+            .map(a => {
+              const aliasClean = String(a)
+                .split(/[\/#!+.\-]+/)
+                .pop()
+                .toLowerCase()
+
+              return `${prefix}${aliasClean}`
+            })
+            .join(' › ')
+
+          menu += `│ ✦ *${aliases}* ${cmd.uso ? `+ ${cmd.uso}` : ''}\n`
+
+          if (cmd.desc) {
+            menu += `│ ◦ _${cmd.desc}_\n`
           }
-        }
-      },
-      { quoted: m }
-    )
 
-  } catch (e) {
-    console.log(e)
-    await m.reply(`${msgglobal + e}`)
+          menu += `│\n`
+        })
+
+        menu += `╰────────────❀\n`
+      }
+
+      if (banner) {
+        await client.sendMessage(
+          m.chat,
+          {
+            image: { url: banner },
+            caption: menu.trim(),
+            contextInfo: {
+              mentionedJid: owner ? [owner] : [],
+              forwardingScore: 999,
+              isForwarded: true,
+              forwardedNewsletterMessageInfo: {
+                newsletterJid: canalId,
+                newsletterName: canalName,
+                serverMessageId: -1,
+              }
+            }
+          },
+          { quoted: m }
+        )
+      } else {
+        await client.sendMessage(
+          m.chat,
+          { text: menu.trim() },
+          { quoted: m }
+        )
+      }
+
+    } catch (e) {
+      console.log(e)
+      return m.reply(`✘ Error al generar el menú.\n> ${e.message}`)
+    }
   }
-}}
+}
