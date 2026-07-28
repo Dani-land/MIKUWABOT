@@ -1,16 +1,36 @@
-import fetch from 'node-fetch'
-import fs from 'fs'
-import axios from 'axios'
 import moment from 'moment-timezone'
 import { commands } from '../../lib/commands.js'
+
+function titleCase(text = '') {
+  return String(text)
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, s => s.toUpperCase())
+}
 
 export default {
   command: ['menu', 'help'],
   category: 'info',
 
-  run: async ({ client, m, text = '', args = [], usedPrefix = '.' }) => {
+  run: async ({ client, m, args = [], usedPrefix = '.' }) => {
     try {
       const cmdsList = Array.isArray(commands) ? commands : []
+      const users = global.db?.data?.users || {}
+      const settings = global.db?.data?.settings || {}
+
+      const botId = ((client.user?.id || '').split(':')[0] || '') + '@s.whatsapp.net'
+      const botSettings = settings[botId] || {}
+
+      const owner = botSettings.owner || ''
+      const canalId = botSettings.id || ''
+      const canalName = botSettings.nameid || ''
+      const link = botSettings.link || 'Sin enlace'
+      const banner = botSettings.banner || null
+
+      let desar = 'Oculto'
+      if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
+        const userData = users[owner]
+        desar = userData?.genre || 'Oculto'
+      }
 
       const now = new Date()
       const colombianTime = new Date(
@@ -26,27 +46,8 @@ export default {
         .replace(/,/g, '')
 
       const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
-      const plugins = cmdsList.length
-
-      const botId = ((client.user?.id || '').split(':')[0] || '') + '@s.whatsapp.net'
-      const botSettings = global.db?.data?.settings?.[botId] || {}
-
-      const botname = botSettings.namebot || 'Miku Wabot'
-      const botname2 = botSettings.namebot2 || 'Miku Wabot'
-      const banner = botSettings.banner || null
-
-      const owner = botSettings.owner || ''
-      const canalId = botSettings.id || ''
-      const canalName = botSettings.nameid || ''
-      const link = botSettings.link || 'Sin enlace'
-
-      let desar = 'Oculto'
-      if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
-        const userData = global.db?.data?.users?.[owner]
-        desar = userData?.genre || 'Oculto'
-      }
-
       const jam = moment.tz('America/Bogota').format('HH:mm:ss')
+      const plugins = cmdsList.length
 
       const ucapan =
         jam < '05:00:00'
@@ -59,8 +60,20 @@ export default {
           ? 'Buenas tardes'
           : 'Buenas noches'
 
-      let menu = `\n\n`
+      const ownerDisplay = owner
+        ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))
+          ? `@${owner.split('@')[0]}`
+          : owner)
+        : 'Oculto por privacidad'
 
+      const ownerLabel =
+        desar === 'Hombre'
+          ? 'Creador'
+          : desar === 'Mujer'
+          ? 'Creadora'
+          : 'Creador(a)'
+
+      let menu = `\n\n`
       menu += `꒰ 🌸 ꒱ 𝐇𝐚𝐭𝐬𝐮𝐧𝐞 𝐌𝐢𝐤𝐮 𝐁𝐨𝐭\n`
       menu += `••••••••••••••••••••••••••••••••••\n`
       menu += `> ${ucapan} *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
@@ -69,25 +82,12 @@ export default {
       menu += `✦ 𝐌𝐢𝐤𝐮 𝐖𝐚𝐛𝐨𝐭 ✦\n`
       menu += `୨୧ ───────────── ୨୧\n`
 
-      menu += `✐ *${desar === 'Hombre'
-        ? 'Creador'
-        : desar === 'Mujer'
-        ? 'Creadora'
-        : 'Creador(a)'} ›* ${
-          owner
-            ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))
-              ? `@${owner.split('@')[0]}`
-              : owner)
-            : 'Oculto por privacidad'
-        }\n`
-
+      menu += `✐ *${ownerLabel} ›* ${ownerDisplay}\n`
       menu += `✐ *Plugins ›* ${plugins}\n`
       menu += `✐ *Versión ›* 3.1.9\n`
       menu += `✐ *Link ›* ${link}\n\n`
-
       menu += `✐ *Fecha ›* ${tiempo}, ${tiempo2}\n`
-      menu += `✐ *Users ›* ${Object.keys(global.db?.data?.users || {}).length.toLocaleString()}\n`
-
+      menu += `✐ *Users ›* ${Object.keys(users).length.toLocaleString()}\n`
       menu += `୨୧ ───────────── ୨୧\n`
 
       const categoryArg = args[0]?.toLowerCase()
@@ -95,11 +95,7 @@ export default {
 
       for (const command of cmdsList) {
         const category = command.category || 'otros'
-
-        if (!categories[category]) {
-          categories[category] = []
-        }
-
+        if (!categories[category]) categories[category] = []
         categories[category].push(command)
       }
 
@@ -116,7 +112,7 @@ export default {
       for (const [category, cmds] of Object.entries(categories)) {
         if (categoryArg && category.toLowerCase() !== categoryArg) continue
 
-        const catName = category.charAt(0).toUpperCase() + category.slice(1)
+        const catName = titleCase(category)
 
         menu += `\n`
         menu += `╭─❀「 ${catName} 」\n`
@@ -171,7 +167,6 @@ export default {
           { quoted: m }
         )
       }
-
     } catch (e) {
       console.log(e)
       return m.reply(`✘ Error al generar el menú.\n> ${e.message}`)
