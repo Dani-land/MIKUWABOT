@@ -3,7 +3,6 @@ import fetch from 'node-fetch'
 import sharp from 'sharp'
 import axios from 'axios'
 import crypto from 'crypto'
-import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from '@whiskeysockets/baileys'
 
 const limit = 300
 
@@ -70,6 +69,7 @@ class SaveTube {
   }
 }
 
+// API de Lempi para video (confirmada con el otro bot)
 const LEMPI_API_URL = 'https://api.lempi.lat/dl/ytv?url='
 const LEMPI_API_KEY = 'lem715'
 
@@ -254,14 +254,11 @@ export default {
 
   run: async ({ client, m, args, command, text, usedPrefix }) => {
     const prefix = usedPrefix || global.prefix || '.'
-    const conn = client
 
     try {
       if (!text.trim()) {
-        return (conn.reply || conn.sendMessage)(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
+        return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
       }
-
-      if (m.react) await m.react('⏱️')
 
       const esURL = isYTUrl(text)
 
@@ -281,106 +278,54 @@ export default {
           title = 'Video'
         }
 
-        await sendResult({ client: conn, m, url, title, videoInfo, isAudio, asDocument })
-        if (m.react) await m.react('✔️')
-        return
+        return sendResult({ client, m, url, title, videoInfo, isAudio, asDocument })
       }
 
       const search = await yts(text)
       if (!search.all.length) {
-        if (m.react) await m.react('✖️')
         return m.reply('ꕥ No encontré resultados.')
       }
 
       videoInfo = search.all[0]
       ;({ title, url } = videoInfo)
 
-      const bodyText = `✿ *${title}*\n\n⌗» Duración › ${videoInfo.duration}\n⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}\n⌗» Canal › ${videoInfo.author?.name || 'Desconocido'}\n⌗» Publicado › ${videoInfo.ago || 'Desconocido'}\n\n✧ Selecciona una opción del menú:`
+      const info = `
+✿ *${title}*
 
-      const rows = [
-        {
-          title: '🎬 Video (MP4)',
-          description: 'Descargar video normal',
-          id: `${prefix}mp4 ${url}`,
-        },
-        {
-          title: '📁 Video (Documento)',
-          description: 'Descargar video como archivo',
-          id: `${prefix}mp4doc ${url}`,
-        },
-        {
-          title: '🎵 Audio (MP3)',
-          description: 'Descargar audio en MP3',
-          id: `${prefix}mp3 ${url}`,
-        },
-        {
-          title: '📁 Audio (Documento)',
-          description: 'Descargar audio como archivo',
-          id: `${prefix}playdoc ${url}`,
-        },
+⌗» Duración › ${videoInfo.duration}
+⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}
+⌗» Canal › ${videoInfo.author?.name || 'Desconocido'}
+⌗» Publicado › ${videoInfo.ago || 'Desconocido'}
+
+✧ Elige en qué formato lo quieres:
+`.trim()
+
+      let thumb
+      try {
+        thumb = (await client.getFile(videoInfo.thumbnail))?.data
+      } catch {}
+
+      const buttons = [
+        { buttonId: `${prefix}mp4 ${url}`, buttonText: { displayText: '🎬 Video (MP4)' }, type: 1 },
+        { buttonId: `${prefix}mp4doc ${url}`, buttonText: { displayText: '📁 Video documento' }, type: 1 },
+        { buttonId: `${prefix}mp3 ${url}`, buttonText: { displayText: '🎵 Audio (MP3)' }, type: 1 },
+        { buttonId: `${prefix}playdoc ${url}`, buttonText: { displayText: '📁 Audio documento' }, type: 1 },
       ]
 
-      let media = null
-      if (videoInfo.thumbnail) {
-        try {
-          media = await prepareWAMessageMedia(
-            { image: { url: videoInfo.thumbnail } },
-            { upload: conn.waUploadToServer }
-          )
-        } catch (e) {
-          console.log('Error preparando imagen media:', e)
-        }
-      }
-
-      const interactive = proto.Message.InteractiveMessage.fromObject({
-        body: proto.Message.InteractiveMessage.Body.fromObject({
-          text: bodyText,
-        }),
-        footer: proto.Message.InteractiveMessage.Footer.fromObject({
-          text: 'Toca el botón para elegir',
-        }),
-        header: proto.Message.InteractiveMessage.Header.fromObject({
-          title: '',
-          subtitle: '',
-          hasMediaAttachment: !!media,
-          ...(media ? { imageMessage: media.imageMessage } : {}),
-        }),
-        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-          buttons: [
-            {
-              name: 'single_select',
-              buttonParamsJson: JSON.stringify({
-                title: '📜 Opciones de Descarga',
-                sections: [
-                  {
-                    title: 'FORMATOS DISPONIBLES',
-                    highlight_label: '📥',
-                    rows,
-                  },
-                ],
-              }),
-            },
-          ],
-        }),
-        contextInfo: {
-          mentionedJid: [m.sender],
+      await client.sendMessage(
+        m.chat,
+        {
+          ...(thumb ? { image: thumb } : {}),
+          text: thumb ? undefined : info,
+          caption: thumb ? info : undefined,
+          footer: 'Toca una opción',
+          buttons,
+          headerType: thumb ? 4 : 1,
         },
-      })
-
-      const messageContent = proto.Message.fromObject({
-        viewOnceMessage: {
-          message: {
-            interactiveMessage: interactive,
-          },
-        },
-      })
-
-      await conn.relayMessage(m.chat, messageContent, { messageId: m.key.id ? m.key.id + '_yt' : undefined })
-
-      if (m.react) await m.react('✔️')
+        { quoted: m }
+      )
     } catch (e) {
       console.log(e)
-      if (m.react) await m.react('✖️')
       m.reply(`✘ Error detectado.\n\n⌗» ${e.message}`)
     }
   },
