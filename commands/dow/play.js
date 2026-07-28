@@ -69,65 +69,12 @@ class SaveTube {
   }
 }
 
-const VEVO_API_BASE = 'https://api.vevioz.com'
+// API de Lempi para video (confirmada con el otro bot)
+const LEMPI_API_URL = 'https://api.lempi.lat/dl/ytv?url='
+const LEMPI_API_KEY = 'lem715'
 
 const isYTUrl = (url) =>
   /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/)|youtu\.be\/).+$/i.test(url)
-
-const fetchParallelFirstValid = async (url, apis, timeout = 45000) => {
-  return new Promise((resolve, reject) => {
-    let finished = false
-    let errors = 0
-
-    const timer = setTimeout(() => {
-      if (!finished) {
-        finished = true
-        reject(new Error('Las APIs tardaron demasiado.'))
-      }
-    }, timeout)
-
-    for (const api of apis) {
-      ;(async () => {
-        try {
-          let result
-
-          if (api.custom) {
-            result = await api.run(url)
-          } else {
-            const controller = new AbortController()
-            const timeoutFetch = setTimeout(() => controller.abort(), 40000)
-
-            const res = await fetch(api.url(url), { signal: controller.signal })
-            clearTimeout(timeoutFetch)
-
-            const json = await res.json()
-
-            if (!api.validate(json)) {
-              throw new Error('API inválida')
-            }
-
-            result = await api.parse(json)
-          }
-
-          if (result?.dl && !finished) {
-            finished = true
-            clearTimeout(timer)
-            resolve(result)
-          } else if (!finished) {
-            throw new Error('Sin link de descarga')
-          }
-        } catch (e) {
-          errors++
-          if (errors >= apis.length && !finished) {
-            finished = true
-            clearTimeout(timer)
-            reject(new Error('Todas las APIs fallaron.'))
-          }
-        }
-      })()
-    }
-  })
-}
 
 async function getBufferFromUrl(url, extraHeaders = {}) {
   const res = await fetch(url, {
@@ -191,41 +138,52 @@ async function sendPlayableVideo(client, m, dl, title, thumbBuffer, extraHeaders
   )
 }
 
-async function resolveDownload(url, isAudio, title) {
-  const vevioApi = {
-    custom: true,
-    run: async (videoUrl) => {
-      const type = isAudio ? 'mp3' : 'videos'
-      const apiUrl = `${VEVO_API_BASE}/api/single/${type}?url=${encodeURIComponent(videoUrl)}`
+async function resolveAudioDownload(url) {
+  const sv = new SaveTube()
+  return sv.download(url, true)
+}
 
-      const res = await fetch(apiUrl, { headers: BROWSER_HEADERS })
-      if (!res.ok) throw new Error('Vevioz falló')
+async function resolveVideoDownload(url, title) {
+  const res = await fetch(`${LEMPI_API_URL}${encodeURIComponent(url)}&apikey=${LEMPI_API_KEY}`, {
+    headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] },
+  })
 
-      const json = await res.json()
+  const text = await res.text()
 
-      return {
-        dl: json?.result?.download_url || json?.download_url || json?.url,
-        title: json?.result?.title || json?.title || title,
-        headers: BROWSER_HEADERS,
-      }
-    },
+  if (!res.ok) {
+    throw new Error(`API Lempi HTTP ${res.status}: ${text.slice(0, 200)}`)
   }
 
-  const saveTubeFallback = {
-    custom: true,
-    run: async (u) => {
-      const sv = new SaveTube()
-      return await sv.download(u, isAudio)
-    },
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`Respuesta inválida de Lempi: ${text.slice(0, 200)}`)
   }
 
-  const apis = [vevioApi, saveTubeFallback]
+  if (!data?.status) {
+    throw new Error(data?.message || 'La API no devolvió un resultado válido.')
+  }
 
-  return fetchParallelFirstValid(url, apis)
+  if (!data?.descarga?.url) {
+    throw new Error('La API no devolvió la URL de descarga.')
+  }
+
+  return {
+    dl: data.descarga.url,
+    title: data.titulo || title,
+    quality: data.descarga.calidad || null,
+    sizeText: data.descarga.tamaño || null,
+    headers: BROWSER_HEADERS,
+  }
 }
 
 async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocument }) {
-  const { dl, title: apiTitle, headers: dlHeaders } = await resolveDownload(url, isAudio, title)
+  const result = isAudio
+    ? await resolveAudioDownload(url)
+    : await resolveVideoDownload(url, title)
+
+  const { dl, title: apiTitle, headers: dlHeaders } = result
 
   let thumbBuffer = null
   if (videoInfo?.thumbnail) {
@@ -252,14 +210,14 @@ async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocumen
     return
   }
 
+  const caption = result.quality || result.sizeText
+    ? `✦ ${finalTitle}\n${result.quality ? `✧ Calidad › *${result.quality}*` : ''}`.trim()
+    : `✦ ${finalTitle}`
+
   if (asDocument) {
     await client.sendMessage(
       m.chat,
-      {
-        document: { url: dl },
-        fileName: `${finalTitle}.mp4`,
-        mimetype: 'video/mp4',
-      },
+      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4', caption },
       { quoted: m }
     )
     return
@@ -278,7 +236,7 @@ async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocumen
   if (exceedsLimit) {
     await client.sendMessage(
       m.chat,
-      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4' },
+      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4', caption },
       { quoted: m }
     )
   } else {
