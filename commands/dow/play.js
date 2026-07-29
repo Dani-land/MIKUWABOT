@@ -267,6 +267,8 @@ export default {
   run: async ({ client, m, args, command, text, usedPrefix }) => {
     const prefix = usedPrefix || global.prefix || '.'
 
+    console.log('DEBUG BOTÓN →', { command, text })
+
     try {
       if (!text.trim()) {
         return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
@@ -318,10 +320,10 @@ export default {
       } catch {}
 
       const buttons = [
-        { buttonId: `${prefix}mp4 ${url}`, buttonText: { displayText: `${prefix}mp4 ${url}` }, type: 1 },
-        { buttonId: `${prefix}mp4doc ${url}`, buttonText: { displayText: `${prefix}mp4doc ${url}` }, type: 1 },
-        { buttonId: `${prefix}mp3 ${url}`, buttonText: { displayText: `${prefix}mp3 ${url}` }, type: 1 },
-        { buttonId: `${prefix}playdoc ${url}`, buttonText: { displayText: `${prefix}playdoc ${url}` }, type: 1 },
+        { buttonId: `${prefix}mp4 ${url}`, buttonText: { displayText: '🎬 Video (MP4)' }, type: 1 },
+        { buttonId: `${prefix}mp4doc ${url}`, buttonText: { displayText: '📁 Video documento' }, type: 1 },
+        { buttonId: `${prefix}mp3 ${url}`, buttonText: { displayText: '🎵 Audio (MP3)' }, type: 1 },
+        { buttonId: `${prefix}playdoc ${url}`, buttonText: { displayText: '📁 Audio documento' }, type: 1 },
       ]
 
       await client.sendMessage(
