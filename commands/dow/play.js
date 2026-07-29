@@ -267,8 +267,6 @@ export default {
   run: async ({ client, m, args, command, text, usedPrefix }) => {
     const prefix = usedPrefix || global.prefix || '.'
 
-    console.log('DEBUG BOTÓN →', { command, text })
-
     try {
       if (!text.trim()) {
         return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
