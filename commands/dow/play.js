@@ -144,38 +144,50 @@ async function resolveAudioDownload(url) {
 }
 
 async function resolveVideoDownload(url, title) {
-  const res = await fetch(`${LEMPI_API_URL}${encodeURIComponent(url)}&apikey=${LEMPI_API_KEY}`, {
-    headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] },
-  })
+  const qualities = [null, '720', '480', '360']
+  let lastError
 
-  const text = await res.text()
+  for (const quality of qualities) {
+    try {
+      const qParam = quality ? `&quality=${quality}` : ''
+      const res = await fetch(
+        `${LEMPI_API_URL}${encodeURIComponent(url)}${qParam}&apikey=${LEMPI_API_KEY}`,
+        { headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] } }
+      )
 
-  if (!res.ok) {
-    throw new Error(`API Lempi HTTP ${res.status}: ${text.slice(0, 200)}`)
+      const text = await res.text()
+
+      if (!res.ok) {
+        lastError = new Error(`API Lempi HTTP ${res.status}: ${text.slice(0, 200)}`)
+        continue
+      }
+
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        lastError = new Error(`Respuesta inválida de Lempi: ${text.slice(0, 200)}`)
+        continue
+      }
+
+      if (!data?.status || !data?.descarga?.url) {
+        lastError = new Error(data?.mensaje || data?.message || 'La API no devolvió un resultado válido.')
+        continue
+      }
+
+      return {
+        dl: data.descarga.url,
+        title: data.titulo || title,
+        quality: data.descarga.calidad || quality || null,
+        sizeText: data.descarga.tamaño || null,
+        headers: BROWSER_HEADERS,
+      }
+    } catch (e) {
+      lastError = e
+    }
   }
 
-  let data
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`Respuesta inválida de Lempi: ${text.slice(0, 200)}`)
-  }
-
-  if (!data?.status) {
-    throw new Error(data?.message || 'La API no devolvió un resultado válido.')
-  }
-
-  if (!data?.descarga?.url) {
-    throw new Error('La API no devolvió la URL de descarga.')
-  }
-
-  return {
-    dl: data.descarga.url,
-    title: data.titulo || title,
-    quality: data.descarga.calidad || null,
-    sizeText: data.descarga.tamaño || null,
-    headers: BROWSER_HEADERS,
-  }
+  throw lastError || new Error('No se pudo descargar el video en ninguna calidad.')
 }
 
 async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocument }) {
