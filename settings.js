@@ -8,12 +8,12 @@ global.pairing_code = true
 global.number_bot = ''
 
 global.api = {
-  url: 'https://senko-apiserverg5.onrender.com',
+  url: 'https://nyxdlapi.vercel.app',
   key: 'null'
 }
 
 global.bot = {
-  api: 'https://senko-apiserverg5.onrender.com/',
+  api: 'https://nyxdlapi.vercel.app',
   web: 'https://github.com/Dani-land/MIKUWABOT.git'
 }
 
