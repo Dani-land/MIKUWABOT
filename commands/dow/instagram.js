@@ -66,7 +66,8 @@ export default {
 ✿ *Likes* › ${likes ?? 'N/A'}
 ✰ *Comentarios* › ${comments ?? 'N/A'}
 ✿ *Contenido* › ${mediaList.length > 1 ? `${mediaList.length} archivos` : mediaList[0].tipo}
-✰ *Enlace* › ${url}${caption ? `\n\n✎ ${caption}` : ''}`.trim()
+✰ *Enlace* › ${url}${caption ? `\n\n✎ ${caption}
+☕︎ *API:* https://nyxdlapi.vercel.app` : ''}`.trim()
 
       let enviados = 0
 
