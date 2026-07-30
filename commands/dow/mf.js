@@ -3,6 +3,12 @@ import path from 'path'
 
 const NYX_API_URL = 'https://nyxdlapi.vercel.app/api/downloads/mediafire'
 
+const DOWNLOAD_HEADERS = {
+  'user-agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  referer: 'https://www.mediafire.com/',
+}
+
 function isMediafire(url) {
   try {
     return new URL(url).hostname.includes('mediafire.com')
@@ -16,6 +22,28 @@ function formatBytes(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
+}
+
+async function downloadBuffer(url) {
+  const res = await fetch(url, { headers: DOWNLOAD_HEADERS, redirect: 'follow' })
+
+  if (!res.ok) {
+    throw new Error(`No se pudo descargar el archivo (${res.status})`)
+  }
+
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('text/html')) {
+    throw new Error('El servidor devolvió una página HTML en vez del archivo (posible verificación/captcha).')
+  }
+
+  const arrayBuffer = await res.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+
+  if (buffer.length < 50000) {
+    throw new Error(`Archivo sospechosamente pequeño (${buffer.length} bytes), probablemente no es el real.`)
+  }
+
+  return buffer
 }
 
 async function resolveMediafire(url) {
@@ -79,14 +107,22 @@ export default {
       const captionLines = [`✦ ${filename}`]
       if (sizeText) captionLines.push(`✧ Tamaño › *${sizeText}*`)
       captionLines.push(`✧ Proxy usada › *NyxDLaPI*`)
+      const caption = captionLines.join('\n')
+
+      let buffer = null
+      try {
+        buffer = await downloadBuffer(downloadUrl)
+      } catch (dlError) {
+        console.log('[mediafire] buffer falló, uso URL directa:', dlError.message)
+      }
 
       await client.sendMessage(
         m.chat,
         {
-          document: { url: downloadUrl },
+          document: buffer ? buffer : { url: downloadUrl },
           fileName: filename,
           mimetype: mime,
-          caption: captionLines.join('\n'),
+          caption,
         },
         { quoted: m }
       )
