@@ -1,11 +1,7 @@
-import axios from 'axios'
-import * as cheerio from 'cheerio'
+import fetch from 'node-fetch'
 import path from 'path'
 
-const HEADERS = {
-  'user-agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-}
+const NYX_API_URL = 'https://nyxdlapi.vercel.app/api/downloads/mediafire'
 
 function isMediafire(url) {
   try {
@@ -15,24 +11,37 @@ function isMediafire(url) {
   }
 }
 
-async function scrapeMediafire(url) {
-  const res = await axios.get(url, { headers: HEADERS, timeout: 20000 })
-  const $ = cheerio.load(res.data)
+function formatBytes(bytes) {
+  if (!bytes) return null
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
+}
 
-  const downloadUrl =
-    ($('#downloadButton').attr('href') || '').trim() ||
-    ($('div#download_link > a.retry').attr('href') || '').trim()
+async function resolveMediafire(url) {
+  const res = await fetch(`${NYX_API_URL}?url=${encodeURIComponent(url)}`)
+  const text = await res.text()
 
-  if (!downloadUrl) {
-    throw new Error('No se encontró el link de descarga en la página de Mediafire.')
+  if (!res.ok) {
+    throw new Error(`NyxDLaPI HTTP ${res.status}: ${text.slice(0, 200)}`)
   }
 
-  const filename =
-    $('div.dl-info > div.intro > div.filename').text().trim() ||
-    $('title').text().replace(/ - Mediafire.*$/i, '').trim() ||
-    'archivo'
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch {
+    throw new Error(`Respuesta inválida de NyxDLaPI: ${text.slice(0, 200)}`)
+  }
 
-  return { downloadUrl, filename }
+  if (!json?.status || !json?.result?.download) {
+    throw new Error(json?.message || 'NyxDLaPI no devolvió un link de descarga.')
+  }
+
+  return {
+    downloadUrl: json.result.download,
+    filename: json.result.filename || 'archivo',
+    size: json.result.size,
+  }
 }
 
 export default {
@@ -49,7 +58,7 @@ export default {
     }
 
     try {
-      const { downloadUrl, filename } = await scrapeMediafire(input)
+      const { downloadUrl, filename, size } = await resolveMediafire(input)
 
       const ext = path.extname(filename) || '.bin'
 
@@ -61,8 +70,15 @@ export default {
         '.zip': 'application/zip',
         '.rar': 'application/vnd.rar',
         '.apk': 'application/vnd.android.package-archive',
+        '.apks': 'application/vnd.android.package-archive',
         '.pdf': 'application/pdf',
       }[ext.toLowerCase()] || 'application/octet-stream'
+
+      const sizeText = typeof size === 'number' ? formatBytes(size) : size
+
+      const captionLines = [`✦ ${filename}`]
+      if (sizeText) captionLines.push(`✧ Tamaño › *${sizeText}*`)
+      captionLines.push(`✧ Proxy usada › *NyxDLaPI*`)
 
       await client.sendMessage(
         m.chat,
@@ -70,6 +86,7 @@ export default {
           document: { url: downloadUrl },
           fileName: filename,
           mimetype: mime,
+          caption: captionLines.join('\n'),
         },
         { quoted: m }
       )
