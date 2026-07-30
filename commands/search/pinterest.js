@@ -25,6 +25,23 @@ async function searchPinterest(query, limit) {
   return json.result.results
 }
 
+// Descarga la imagen con headers "de navegador" para evitar el bloqueo
+// de hotlinking de Pinterest (por eso salía la burbuja rota)
+async function downloadImage(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+      Referer: 'https://www.pinterest.com/',
+      Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    },
+  })
+  if (!res.ok) throw new Error(`No se pudo descargar la imagen (HTTP ${res.status})`)
+  const buffer = await res.buffer()
+  if (!buffer || buffer.length < 500) throw new Error('Imagen vacía o inválida')
+  return buffer
+}
+
 export default {
   command: ['pinterest', 'pin'],
   category: 'search',
@@ -44,7 +61,6 @@ export default {
 
     let limit = 5
     let query = text
-
     const lastArg = args[args.length - 1]
 
     if (lastArg && !isNaN(lastArg) && lastArg.trim() !== '') {
@@ -63,7 +79,9 @@ export default {
 
       const results = await searchPinterest(query, limit)
 
-      // Normaliza el campo de imagen por si la API usa otro nombre
+      // debug: mira en tu consola cómo viene el primer resultado
+      console.log('[pinterest] ejemplo de resultado:', JSON.stringify(results[0], null, 2))
+
       const pickImage = (v) =>
         v.image || v.img || v.url || v.thumbnail || v.imageUrl || v.image_url
 
@@ -71,7 +89,6 @@ export default {
 
       for (const v of results.slice(0, limit)) {
         const imgUrl = pickImage(v)
-
         if (!imgUrl) {
           console.log('[pinterest] resultado sin imagen, se omite:', v)
           continue
@@ -84,25 +101,22 @@ export default {
         txt += `☕︎ Búsqueda › ${query}`
 
         try {
+          const buffer = await downloadImage(imgUrl)
+
           await client.sendMessage(
             m.chat,
-            {
-              image: { url: imgUrl },
-              caption: txt,
-            },
+            { image: buffer, caption: txt },
             { quoted: m }
           )
           enviados++
-          // pequeña pausa para evitar rate-limit / flood de WhatsApp
           await new Promise((r) => setTimeout(r, 600))
         } catch (sendErr) {
-          console.log('[pinterest] fallo al enviar una imagen:', sendErr.message)
-          // no rompe el loop, sigue con el siguiente resultado
+          console.log('[pinterest] fallo con una imagen, se omite:', sendErr.message)
         }
       }
 
       if (enviados === 0) {
-        await m.reply('✘ No se pudo enviar ninguna imagen (revisa el campo de imagen que devuelve la API).')
+        await m.reply('✘ No se pudo enviar ninguna imagen. Revisa la consola: puede que el campo de imagen o la URL de Pinterest no sean válidos.')
       }
     } catch (e) {
       console.log('[pinterest]', e.message)
