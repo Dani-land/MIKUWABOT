@@ -28,7 +28,7 @@
     "@whiskeysockets/baileys": "github:this-xys/baileys",
     "awesome-phonenumber": "^4.4.0",
     "axios": "^0.24.0",
-    "better-sqlite3": "^12.4.1",
+    "better-sqlite3": "^13.0.2",
     "boxen": "latest",
     "cfonts": "^3.3.0",
     "chalk": "^4.1.2",

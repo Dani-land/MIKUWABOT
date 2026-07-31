@@ -1,9 +1,40 @@
 import chalk from 'chalk'
 import {
     fetchIconBuffer,
-    getCachedGroupMetadata,
     resolveLidToRealJid,
 } from '../lib/utils.js'
+
+const groupMetadataCache = new Map()
+const groupMetadataRequests = new Map()
+
+async function getGroupMetadata(client, groupId) {
+    const cached = groupMetadataCache.get(groupId)
+    if (cached && Date.now() - cached.timestamp < 60 * 1000) {
+        return cached.metadata
+    }
+
+    if (groupMetadataRequests.has(groupId)) {
+        return groupMetadataRequests.get(groupId)
+    }
+
+    const request = Promise.race([
+        client.groupMetadata(groupId).catch(() => null),
+        new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]).then((metadata) => {
+        if (metadata) {
+            groupMetadataCache.set(groupId, {
+                metadata,
+                timestamp: Date.now(),
+            })
+        }
+        return metadata || (cached && cached.metadata) || null
+    }).finally(() => {
+        groupMetadataRequests.delete(groupId)
+    })
+
+    groupMetadataRequests.set(groupId, request)
+    return request
+}
 
 export const participantsUpdate = async (client, anu) => {
     try {
@@ -20,7 +51,7 @@ export const participantsUpdate = async (client, anu) => {
 
         // En grupos grandes groupMetadata puede tardar o fallar. El caché
         // deduplica las consultas y permite continuar con datos mínimos.
-        const metadata = await getCachedGroupMetadata(client, anu.id) || {
+        const metadata = await getGroupMetadata(client, anu.id) || {
             subject: 'este grupo',
             participants: [],
         }
