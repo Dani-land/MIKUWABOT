@@ -1,4 +1,4 @@
-const OWNER_NUMBER = '526242255295'
+const OWNER_NUMBER = '5216242255295'
 
 function isOwner(jid = '') {
   const number = jid.split('@')[0].split(':')[0]
