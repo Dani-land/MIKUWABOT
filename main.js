@@ -245,7 +245,7 @@ async function handleMessage(client, m) {
             'suggest', 'invite', 'invitar', 'setname', 'setbotname', 'setbanner',
             'setmenubanner', 'setusername', 'setpfp', 'setimage', 'setbotcurrency',
             'setbotprefix', 'setstatus', 'setbotowner', 'reload', 'codemod', 'qrmod',
-            'codepremium', 'qrpremium'
+            'codepremium', 'qrpremium', 'code'
         ]
         const allowedInPrivateForSelf = ['s', 'suno']
         const settings = global.db.data.settings[selfId]
