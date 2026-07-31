@@ -1,8 +1,9 @@
 export async function before(m, { client }) {
-let bot = global.db.data.settings[client.user.id.split(':')[0] + "@s.whatsapp.net"]
-let botname = bot.namebot
-let botname2 = bot.namebot2
-let icon = bot.icon
+const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
+const bot = global.db?.data?.settings?.[botId] || {}
+const botname = bot.namebot || 'MikuWabot'
+const botname2 = bot.namebot2 || 'Miku AI'
+const icon = bot.icon || ''
 
 var canal = 'https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b'
 var canal2 = 'https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b'

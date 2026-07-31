@@ -46,6 +46,10 @@ loadCommandsAndPlugins()
 export default async (client, m) => {
     if (!m.message) return
 
+    // Initialize state before global middlewares. Several middlewares read
+    // bot settings and chat options on the first message in a chat.
+    initDB(m, client)
+
     await antiStatus(client, m)
 
     if (m.message.viewOnceMessageV2) {
@@ -142,8 +146,6 @@ export default async (client, m) => {
         (m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson &&
             JSON.parse(m.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson).id) ||
         ""
-
-    initDB(m, client)
 
     let usedPrefix = null
 
