@@ -1,31 +1,46 @@
 import chalk from 'chalk'
-import moment from 'moment-timezone'
-import { fetchIconBuffer } from '../lib/utils.js'
+import {
+    fetchIconBuffer,
+    getCachedGroupMetadata,
+    resolveLidToRealJid,
+} from '../lib/utils.js'
 
 export const participantsUpdate = async (client, anu) => {
     try {
-        const metadata = await client.groupMetadata(anu.id)
+        if (!anu?.id || !anu.id.endsWith('@g.us')) return
+
+        // group-participants.update puede llegar antes que el primer mensaje
+        // del grupo. En ese caso initDB aún no creó esta entrada.
+        global.db.data.chats[anu.id] ||= {}
         const chat = global.db.data.chats[anu.id]
+        chat.welcome ??= true
+        chat.alerts ??= true
+
+        // En grupos grandes groupMetadata puede tardar o fallar. El caché
+        // deduplica las consultas y permite continuar con datos mínimos.
+        const metadata = await getCachedGroupMetadata(client, anu.id) || {
+            subject: 'este grupo',
+            participants: [],
+        }
         const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
         const primaryBotId = chat?.primaryBot
 
-        const now = new Date()
-        const colombianTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-        const tiempo = colombianTime.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        }).replace(/,/g, '')
-        const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+        // Baileys antiguo entrega strings; las versiones nuevas pueden
+        // entregar objetos con id/lid/phoneNumber.
+        const entries = Array.isArray(anu.participants) ? anu.participants : []
+        const metadataCount = metadata.participants.length
+        const memberCount = metadataCount > 0 ? metadataCount : entries.length
+        for (const entry of entries) {
+            const participant = typeof entry === 'string' ? { id: entry } : (entry || {})
+            const originalJid = participant.id || participant.lid || participant.phoneNumber
+            if (!originalJid) continue
 
-        let memberCount = metadata.participants.length
- 
-        if (anu.action === 'add') memberCount += 1
-        if (anu.action === 'remove' || anu.action === 'leave') memberCount -= 1
-
-        for (const p of anu.participants) {
-            const jid = p
-            const phone = jid.split('@')[0]
+            let jid = await resolveLidToRealJid(originalJid, client, anu.id)
+            if (jid?.endsWith('@lid') && participant.phoneNumber) {
+                jid = participant.phoneNumber
+            }
+            const mentionJid = jid || originalJid
+            const phone = mentionJid.split('@')[0]
             const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://files.catbox.moe/sxt0he.jpeg')
 
             const botSettings = global.db.data.settings[botId] || {}
@@ -50,7 +65,7 @@ export const participantsUpdate = async (client, anu) => {
                         mediaType: 1,
                         renderLargerThumbnail: false
                     },
-                    mentionedJid: [jid, anu.author].filter(Boolean)
+                    mentionedJid: [mentionJid, anu.author].filter(Boolean)
                 }
             }
 
@@ -68,7 +83,7 @@ export const participantsUpdate = async (client, anu) => {
                 await client.sendMessage(anu.id, { 
                     image: { url: pp }, 
                     caption: caption, 
-                    mentions: [jid],
+                    mentions: [mentionJid],
                     ...fakeContext 
                 })
             }
@@ -85,7 +100,7 @@ export const participantsUpdate = async (client, anu) => {
                 await client.sendMessage(anu.id, { 
                     image: { url: pp }, 
                     caption: caption, 
-                    mentions: [jid],
+                    mentions: [mentionJid],
                     ...fakeContext 
                 })
             }
