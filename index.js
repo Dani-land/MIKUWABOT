@@ -450,9 +450,16 @@ export function patchSendMessage(client, onMessageSent) {
   client.sendMessage = (jid, content, options = {}) => {
     return new Promise((resolve, reject) => {
       enqueue(async () => {
-        const res = await original(jid, content, options)
-        onMessageSent?.(res)
-        resolve(res)
+        try {
+          const res = await original(jid, content, options)
+          onMessageSent?.(res)
+          resolve(res)
+        } catch (e) {
+          // Propagar el error al llamador para que el await no se quede
+          // colgado indefinidamente cuando WhatsApp rechaza el envío
+          // (p.ej. grupo en modo solo-admins y el bot no es admin).
+          reject(e)
+        }
       })
     })
   }

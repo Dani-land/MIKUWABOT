@@ -298,6 +298,11 @@ export default async (client, m) => {
         if (msg) return m.reply(msg)
     }
 
+    // Si el grupo de WhatsApp está en modo "solo admins" (announce) y el bot
+    // no es admin, no intentar enviar nada: WhatsApp rechazaría el mensaje
+    // y dejaría la cola de envío bloqueada indefinidamente.
+    if (isGroup && metadata?.announce && !isBotAdmin) return
+
     if (cmdData.isOwner && !isOwner) return global.dfail('owner', m)
     if (cmdData.isModeration && !isModeration) return global.dfail('moderation', m)
     if (cmdData.isAdmin && !isAdmin) return global.dfail('admin', m)
