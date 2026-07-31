@@ -229,8 +229,6 @@ async function startBot() {
   patchSendMessage(clientt)
   global.client = clientt
   clientt.isInit = false
-  // El bot debe procesar mensajes recibidos, no solo los enviados por él.
-  clientt.public = true
   clientt.ev.on("creds.update", saveCreds)
 
   if (!clientt.authState.creds.registered) {
@@ -350,7 +348,7 @@ async function startBot() {
     }
   })
 
-  clientt.ev.on("messages.upsert", async ({ messages, type }) => {
+  clientt.ev.on("messages.upsert", async ({ messages }) => {
     try {
       let m = messages[0]
       if (!m.message) return
@@ -361,11 +359,11 @@ async function startBot() {
           : m.message
 
       if (m.key && m.key.remoteJid === "status@broadcast") return
-      if (!clientt.public && !m.key.fromMe && type === "notify") return
-      if (m.key.id?.startsWith("BAE5") && m.key.id.length === 16) return
+      if (!clientt.public && !m.key.fromMe && messages.type === "notify") return
+      if (m.key.id.startsWith("BAE5") && m.key.id.length === 16) return
 
       m = await smsg(clientt, m)
-      await handler(clientt, m, { messages, type })
+      handler(clientt, m, messages)
     } catch (err) {
       console.log(err)
     }
@@ -384,47 +382,52 @@ async function startBot() {
   }
 }
 
+function enqueue(task) {
+  queue.push(task)
+  run()
+}
+
+let lastWasRateLimit = false
+
+async function run() {
+  if (running) return
+  running = true
+
+  while (queue.length) {
+    const job = queue.shift()
+    try {
+      await job()
+      lastWasRateLimit = false
+    } catch (e) {
+      if (String(e).includes('rate-overlimit')) {
+        log.warn('Rate limit detectado, esperando antes de reintentar…')
+        lastWasRateLimit = true
+        await new Promise(r => setTimeout(r, 2000))
+        queue.unshift(job)
+      } else {
+        log.error(`Error al enviar mensaje: ${e?.message || e}`)
+        lastWasRateLimit = false
+      }
+    }
+
+    await new Promise(r => setTimeout(r, lastWasRateLimit ? DELAY_AFTER_RATELIMIT : DELAY_NORMAL))
+  }
+
+  running = false
+}
+
 export function patchSendMessage(client) {
   if (client._sendMessagePatched) return
   client._sendMessagePatched = true
 
   const original = client.sendMessage.bind(client)
-  const queues = new Map()
-  client._sendQueues = queues
 
   client.sendMessage = (jid, content, options = {}) => {
-    const queueKey = jid || 'unknown'
-    const previous = queues.get(queueKey) || Promise.resolve()
-
     return new Promise((resolve, reject) => {
-      const job = previous
-        .catch(() => {})
-        .then(async () => {
-          let attempt = 0
-          while (true) {
-            try {
-              const res = await original(jid, content, options)
-              resolve(res)
-              return
-            } catch (error) {
-              const rateLimited = String(error).includes('rate-overlimit')
-              if (!rateLimited || attempt >= 2) {
-                reject(error)
-                log.error(`Error al enviar mensaje: ${error?.message || error}`)
-                return
-              }
-
-              attempt++
-              log.warn(`Límite de WhatsApp detectado; reintentando (${attempt}/2)…`)
-              await new Promise((r) => setTimeout(r, DELAY_AFTER_RATELIMIT))
-            }
-          }
-        })
-        .finally(() => {
-          if (queues.get(queueKey) === job) queues.delete(queueKey)
-        })
-
-      queues.set(queueKey, job)
+      enqueue(async () => {
+        const res = await original(jid, content, options)
+        resolve(res)
+      })
     })
   }
 }
