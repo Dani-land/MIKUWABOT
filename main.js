@@ -306,58 +306,52 @@ export default async (client, m) => {
     }
 
     try {
-        try {
-            global.db.data.users = global.db.data.users || {}
-            const user2 = global.db.data.users[sender] ||= {}
-            user2.name = (pushname || 'Sin nombre').trim()
-            user2.usedcommands = (user2.usedcommands || 0) + 1
-            user2.exp = (user2.exp || 0) + Math.floor(Math.random() * 100)
-            user2.lastCommand = command
-            user2.lastSeen = new Date()
+        global.db.data.users = global.db.data.users || {}
+        const user2 = global.db.data.users[sender] ||= {}
+        user2.name = (pushname || 'Sin nombre').trim()
+        user2.usedcommands = (user2.usedcommands || 0) + 1
+        user2.exp = (user2.exp || 0) + Math.floor(Math.random() * 100)
+        user2.lastCommand = command
+        user2.lastSeen = new Date()
 
-            await cmdData.run({
-                client,
-                m,
-                args,
-                command,
-                text,
-                usedPrefix,
-                prefix: usedPrefix
-            })
-        } catch (err) {
-            await m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
-            console.error("Error ejecutando comando:", err)
-        }
-        for (const name in global.plugins) {
-            const plugin = global.plugins[name]
-            if (typeof plugin.after === "function") {
-                try {
-                    await plugin.after.call(client, m, { client, usedPrefix })
-                } catch (err) {
-                    console.error(`Error en plugin.after -> ${name}`, err)
-                }
-            }
-        }
-
-        if (typeof cmdData.after === "function") {
+        await cmdData.run({
+            client,
+            m,
+            args,
+            command,
+            text,
+            usedPrefix,
+            prefix: usedPrefix
+        })
+    } catch (err) {
+        m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
+        console.error("Error ejecutando comando:", err)
+    }
+    for (const name in global.plugins) {
+        const plugin = global.plugins[name]
+        if (typeof plugin.after === "function") {
             try {
-                await cmdData.after.call(client, m, { client, command, usedPrefix })
+                await plugin.after.call(client, m, { client, usedPrefix })
             } catch (err) {
-                console.error(`Error en AFTER del comando ${command}:`, err)
+                console.error(`Error en plugin.after -> ${name}`, err)
             }
         }
-        if (global.middlewares?.after?.length) {
-            for (const after of global.middlewares.after) {
-                try {
-                    await after(m, { client })
-                } catch (err) {
-                    console.error('Error en global middleware AFTER:', err)
-                }
-            }
+    }
+
+    if (typeof cmdData.after === "function") {
+        try {
+            await cmdData.after.call(client, m, { client, command, usedPrefix })
+        } catch (err) {
+            console.error(`Error en AFTER del comando ${command}:`, err)
         }
-    } finally {
-        if (command) {
-            await client.sendPresenceUpdate('paused', m.chat).catch(() => {})
+    }
+    if (global.middlewares?.after?.length) {
+        for (const after of global.middlewares.after) {
+            try {
+                await after(m, { client })
+            } catch (err) {
+                console.error('Error en global middleware AFTER:', err)
+            }
         }
     }
 }
