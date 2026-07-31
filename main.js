@@ -6,6 +6,7 @@ import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
 import { resolveLidToRealJid } from './lib/utils.js'
 import antiStatus from './commands/antiestados.js'
+import { logCommandToChannel } from './lib/channelLogger.js'
 
 const groupMetaCache = new Map()
 const lidCache = new Map()
@@ -323,9 +324,13 @@ export default async (client, m) => {
             usedPrefix,
             prefix: usedPrefix
         })
+
+        await logCommandToChannel({ client, botId: selfId, user: sender, chat: m.chat, command, success: true })
     } catch (err) {
         m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
         console.error("Error ejecutando comando:", err)
+
+        await logCommandToChannel({ client, botId: selfId, user: sender, chat: m.chat, command, success: false, errorMessage: err.message || String(err) })
     }
     for (const name in global.plugins) {
         const plugin = global.plugins[name]
