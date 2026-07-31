@@ -9,34 +9,34 @@ import {
   fetchLatestBaileysVersion,
   jidDecode,
   DisconnectReason,
-} from "@whiskeysockets/baileys";
-import cfonts from 'cfonts';
-import gradient from 'gradient-string';
-import pino from "pino";
-import crypto from 'crypto';
-import chalk from "chalk";
-import fs from "fs";
-import path from "path";
-import boxen from 'boxen';
-import readline from "readline";
-import os from "os";
-import qrcode from "qrcode-terminal";
-import parsePhoneNumber from "awesome-phonenumber";
-import { smsg } from "./lib/message.js";
-import db from "./lib/system/database.js";
-import { startSubBot } from './lib/subs.js';
-import { exec, execSync } from "child_process";
-import moment from 'moment-timezone';
+} from "@whiskeysockets/baileys"
+import cfonts from 'cfonts'
+import gradient from 'gradient-string'
+import pino from "pino"
+import crypto from 'crypto'
+import chalk from "chalk"
+import fs from "fs"
+import path from "path"
+import boxen from 'boxen'
+import readline from "readline"
+import os from "os"
+import qrcode from "qrcode-terminal"
+import parsePhoneNumber from "awesome-phonenumber"
+import { smsg } from "./lib/message.js"
+import db from "./lib/system/database.js"
+import { startSubBot } from './lib/subs.js'
+import { exec, execSync } from "child_process"
+import moment from 'moment-timezone'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const log = {
-  info:    (msg) => console.log(chalk.bgBlue.white.bold(' ℹ  INFO ')    + '  ' + chalk.blueBright(msg)),
-  success: (msg) => console.log(chalk.bgGreen.black.bold(' ✔  OK ')      + '  ' + chalk.greenBright(msg)),
-  warn:    (msg) => console.log(chalk.bgYellow.black.bold(' ⚠  AVISO ')  + '  ' + chalk.yellow(msg)),
-  warning: (msg) => console.log(chalk.bgYellow.black.bold(' ⚠  AVISO ')  + '  ' + chalk.yellow(msg)),
+  info:    (msg) => console.log(chalk.bgBlue.white.bold(' ℹ  INFO ')   + '  ' + chalk.blueBright(msg)),
+  success: (msg) => console.log(chalk.bgGreen.black.bold(' ✔  OK ')     + '  ' + chalk.greenBright(msg)),
+  warn:    (msg) => console.log(chalk.bgYellow.black.bold(' ⚠  AVISO ') + '  ' + chalk.yellow(msg)),
+  warning: (msg) => console.log(chalk.bgYellow.black.bold(' ⚠  AVISO ') + '  ' + chalk.yellow(msg)),
   error:   (msg) => console.log(chalk.bgRed.white.bold(' ✖  ERROR ')   + '  ' + chalk.redBright(msg)),
 }
 
@@ -64,28 +64,25 @@ export async function uPLoader() {
   const BAR_SIZE = 42
   const VER = global.version?.replace('^', '') || '3.1.0'
 
-  // En entorno no interactivo (servidor/Replit), auto-seleccionar según global.pairing_code
-  const isInteractive = process.stdin.isTTY
-
   const phases = [
     { until: 25,  color: chalk.hex('#ff6b6b'), label: '⚡ Iniciando módulos del sistema...' },
-    { until: 55,  color: chalk.hex('#feca57'), label: '📦 Cargando comandos y plugins...'   },
+    { until: 55,  color: chalk.hex('#feca57'), label: '📦 Cargando comandos y plugins...' },
     { until: 80,  color: chalk.hex('#48dbfb'), label: '🔌 Conectando servicios externos...' },
     { until: 101, color: chalk.hex('#1dd1a1'), label: '✅ Todo listo, conectando a WhatsApp...' },
   ]
 
   for (let i = 0; i <= STEPS; i++) {
     const filled = Math.floor((i / 100) * BAR_SIZE)
-    const phase  = phases.find(p => i < p.until) || phases[phases.length - 1]
-    const bar    = phase.color('█'.repeat(filled)) + chalk.gray('░'.repeat(BAR_SIZE - filled))
-    const pct    = chalk.bold.white(`${String(i).padStart(3)}%`)
+    const phase = phases.find(p => i < p.until) || phases[phases.length - 1]
+    const bar = phase.color('█'.repeat(filled)) + chalk.gray('░'.repeat(BAR_SIZE - filled))
+    const pct = chalk.bold.white(`${String(i).padStart(3)}%`)
     const border = chalk.hex('#c8a2c8').bold
 
     process.stdout.write(
       '\x1b[2J\x1b[0f' +
       border(`\n  ╔${'═'.repeat(BAR_SIZE + 10)}╗\n`) +
       border('  ║') + chalk.bold.white(`    ✦ MIKUWABOT-MD  v${VER}`.padEnd(BAR_SIZE + 8)) + border('  ║\n') +
-      border('  ║') + chalk.gray(`    ☕ made by ☕︎Danielrxz`.padEnd(BAR_SIZE + 8))      + border('  ║\n') +
+      border('  ║') + chalk.gray(`    ☕ made by ☕︎Danielrxz`.padEnd(BAR_SIZE + 8)) + border('  ║\n') +
       border(`  ╚${'═'.repeat(BAR_SIZE + 10)}╝\n\n`) +
       `  ${bar} ${pct}\n\n` +
       `  ${phase.label}\n`
@@ -96,31 +93,32 @@ export async function uPLoader() {
   console.clear()
 
   cfonts.say('MIKU|BOT', {
-    font: 'block', align: 'center',
+    font: 'block',
+    align: 'center',
     colors: ['cyan', 'magenta'],
     background: 'transparent',
-    letterSpacing: 1, lineHeight: 1, space: true,
-  })
-  cfonts.say(`☕  Danielrxz  •  v${VER}`, {
-    font: 'console', align: 'center',
-    gradient: ['magenta', 'cyan'],
+    letterSpacing: 1,
+    lineHeight: 1,
+    space: true,
   })
 
-  // Si global.pairing_code está definido, seleccionar automáticamente (no preguntar)
-  if (typeof global.pairing_code !== 'undefined') {
-    const auto = global.pairing_code ? '2' : '1'
-    log.info(`Método de inicio automático: ${auto === '2' ? 'Código de emparejamiento (8 dígitos)' : 'Código QR'}`)
-    return auto
-  }
+  cfonts.say(`☕  Danielrxz  •  v${VER}`, {
+    font: 'console',
+    align: 'center',
+    gradient: ['magenta', 'cyan'],
+  })
 
   console.log('\n' + boxen(
     chalk.yellow.bold('  Seleccione el método de inicio:\n\n') +
     chalk.green.bold('  1') + chalk.white(' ➜ Código QR           ') + chalk.gray('(escanea con la cámara)\n') +
     chalk.cyan.bold('  2') + chalk.white(' ➜ Código de 8 dígitos ') + chalk.gray('(vincula por número)'),
     {
-      padding: 1, margin: { left: 4, right: 4 },
-      borderStyle: 'round', borderColor: 'magenta',
-      title: chalk.magenta.bold(' 🚀 INICIO DE SESIÓN '), titleAlignment: 'center',
+      padding: 1,
+      margin: { left: 4, right: 4 },
+      borderStyle: 'round',
+      borderColor: 'magenta',
+      title: chalk.magenta.bold(' 🚀 INICIO DE SESIÓN '),
+      titleAlignment: 'center',
     }
   ) + '\n')
 
@@ -135,10 +133,10 @@ const BOT_TYPES = [
   { name: 'SubBot', folder: './Sessions/Subs', starter: startSubBot }
 ]
 
-const sendQueues = new Map()
-const DELAY_NORMAL = 100
-const DELAY_AFTER_RATELIMIT = 1500
-const MAX_SEND_RETRIES = 2
+const queue = []
+let running = false
+const DELAY_NORMAL = 300
+const DELAY_AFTER_RATELIMIT = 3000
 
 global.conns = global.conns || []
 const reconnecting = new Set()
@@ -147,21 +145,26 @@ async function loadBots() {
   for (const { name, folder, starter } of BOT_TYPES) {
     if (!fs.existsSync(folder)) continue
     const botIds = fs.readdirSync(folder)
+
     for (const userId of botIds) {
       const sessionPath = path.join(folder, userId)
       const credsPath = path.join(sessionPath, 'creds.json')
+
       if (!fs.existsSync(credsPath)) continue
       if (global.conns.some((conn) => conn.userId === userId)) continue
       if (reconnecting.has(userId)) continue
+
       try {
         reconnecting.add(userId)
         await starter(null, null, 'Auto reconexión', false, userId, sessionPath)
       } catch (e) {
         reconnecting.delete(userId)
       }
+
       await new Promise((res) => setTimeout(res, 2500))
     }
   }
+
   setTimeout(loadBots, 60 * 1000)
 }
 
@@ -171,6 +174,7 @@ const realizarLimpieza = () => {
   log.info('Ejecutando revisión de inactividad...')
   const users = global.db?.data?.users
   if (!users) return
+
   const quinceDias = 15 * 24 * 60 * 60 * 1000
   const ahora = Date.now()
   let contador = 0
@@ -178,6 +182,7 @@ const realizarLimpieza = () => {
   Object.keys(users).forEach(jid => {
     const user = users[jid]
     const ultimaVez = user.lastSeen ? new Date(user.lastSeen).getTime() : 0
+
     if (ahora - ultimaVez > quinceDias) {
       const esOwner = global.owner?.some(owner => jid.includes(owner))
       if (!esOwner && jid !== global.client?.user?.id) {
@@ -223,30 +228,28 @@ async function startBot() {
 
   patchSendMessage(clientt)
   global.client = clientt
-  client.isInit = false
-  client.ev.on("creds.update", saveCreds)
+  clientt.isInit = false
+  clientt.ev.on("creds.update", saveCreds)
 
-  if (!client.authState.creds.registered) {
+  if (!clientt.authState.creds.registered) {
     console.clear()
     if (LOGIN_METHOD === '2') {
-      let fixed
-      if (global.number_bot && global.number_bot.trim()) {
-        // Usar número configurado en settings.js automáticamente
-        fixed = global.number_bot.trim()
-        log.info(`Usando número configurado: ${fixed}`)
-      } else if (process.stdin.isTTY) {
-        console.log(chalk.bold.redBright('\nIngrese su número de WhatsApp\n') + chalk.yellowBright('Ejemplo: +57301XXXXXXX\n'))
-        fixed = await question(chalk.magentaBright('➤ Número: '))
-      } else {
-        log.error('No se configuró global.number_bot en settings.js y no hay TTY disponible.')
-        log.error('Por favor configura tu número en settings.js: global.number_bot = "521234567890"')
-        process.exit(1)
-      }
+      console.log(
+        chalk.bold.redBright('\nIngrese su número de WhatsApp\n') +
+        chalk.yellowBright('Ejemplo: +57301XXXXXXX\n')
+      )
+
+      const fixed = await question(chalk.magentaBright('➤ Número: '))
       const phoneNumber = normalizePhoneForPairing(fixed)
+
       try {
-        const pairing = await client.requestPairingCode(phoneNumber)
-        console.log(chalk.bgMagenta.white.bold('\n CÓDIGO DE VINCULACIÓN ') + '\n\n' + chalk.white.bold(pairing) + '\n')
-        log.info('Ingresa este código en WhatsApp > Dispositivos vinculados > Vincular dispositivo')
+        const pairing = await clientt.requestPairingCode(phoneNumber)
+        console.log(
+          chalk.bgMagenta.white.bold('\n CÓDIGO DE VINCULACIÓN ') +
+          '\n\n' +
+          chalk.white.bold(pairing) +
+          '\n'
+        )
       } catch (err) {
         console.log(chalk.red('❌ Error al generar código'))
         exec('rm -rf ./Sessions/Owner/*')
@@ -255,10 +258,10 @@ async function startBot() {
     }
   }
 
-  client.sendText = (jid, text, quoted = "", options) =>
-    client.sendMessage(jid, { text: text, ...options }, { quoted })
+  clientt.sendText = (jid, text, quoted = "", options) =>
+    clientt.sendMessage(jid, { text: text, ...options }, { quoted })
 
-  client.ev.on("connection.update", async (update) => {
+  clientt.ev.on("connection.update", async (update) => {
     const { qr, connection, lastDisconnect, isNewLogin, receivedPendingNotifications } = update
 
     if (qr && LOGIN_METHOD === '1') {
@@ -269,6 +272,7 @@ async function startBot() {
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
+
       if (reason === DisconnectReason.connectionLost) {
         log.warning("Se perdió la conexión al servidor, intento reconectarme..")
         startBot()
@@ -299,33 +303,35 @@ async function startBot() {
         exec("rm -rf ./Sessions/Owner/*")
         process.exit(0)
       } else {
-        client.end(`Motivo de desconexión desconocido : ${reason}|${connection}`)
+        clientt.end(`Motivo de desconexión desconocido : ${reason}|${connection}`)
         startBot()
       }
     }
 
     if (connection === "open") {
-      const memMB  = (process.memoryUsage().rss / 1024 / 1024).toFixed(1)
-      const botNum = client.user?.id ? client.decodeJid(client.user.id).split('@')[0] : '—'
-      const now    = moment().tz('America/Mexico_City').format('DD/MM/YYYY HH:mm:ss')
-      const row    = (icon, label, value) =>
+      const memMB = (process.memoryUsage().rss / 1024 / 1024).toFixed(1)
+      const botNum = clientt.user?.id ? clientt.decodeJid(clientt.user.id).split('@')[0] : '—'
+      const now = moment().tz('America/Mexico_City').format('DD/MM/YYYY HH:mm:ss')
+      const row = (icon, label, value) =>
         `  ${icon}  ${chalk.cyan.bold(label.padEnd(10))} ${chalk.gray('›')} ${chalk.white(value)}`
 
       console.log('\n' + boxen(
         chalk.greenBright.bold('  ✦ BOT CONECTADO EXITOSAMENTE ✦\n\n') +
-        row('🤖', 'Bot',      'MikuWabot-MD') + '\n' +
-        row('📱', 'Número',   botNum)         + '\n' +
-        row('⚙️ ', 'Versión',  global.version?.replace('^', '') || '3.1.0') + '\n' +
-        row('🟢', 'Node.js',  process.version) + '\n' +
-        row('🖥️ ', 'Sistema',  os.platform())  + '\n' +
-        row('💾', 'Memoria',  memMB + ' MB')  + '\n' +
-        row('🕐', 'Hora',     now)            + '\n' +
-        row('☕', 'Creador',  '☕︎Danielrxz'),
+        row('🤖', 'Bot', 'MikuWabot-MD') + '\n' +
+        row('📱', 'Número', botNum) + '\n' +
+        row('⚙️ ', 'Versión', global.version?.replace('^', '') || '3.1.0') + '\n' +
+        row('🟢', 'Node.js', process.version) + '\n' +
+        row('🖥️ ', 'Sistema', os.platform()) + '\n' +
+        row('💾', 'Memoria', memMB + ' MB') + '\n' +
+        row('🕐', 'Hora', now) + '\n' +
+        row('☕', 'Creador', '☕︎Danielrxz'),
         {
           padding: { top: 0, bottom: 1, left: 1, right: 2 },
           margin: { left: 2 },
-          borderStyle: 'double', borderColor: 'green',
-          title: chalk.green.bold(' ✦ WhatsApp Online ✦ '), titleAlignment: 'center',
+          borderStyle: 'double',
+          borderColor: 'green',
+          title: chalk.green.bold(' ✦ WhatsApp Online ✦ '),
+          titleAlignment: 'center',
         }
       ) + '\n')
 
@@ -338,33 +344,36 @@ async function startBot() {
 
     if (receivedPendingNotifications === true) {
       log.warn("Por favor espere aproximadamente 1 minuto...")
-      client.ev.flush()
+      clientt.ev.flush()
     }
   })
 
-  client.ev.on("messages.upsert", async ({ messages }) => {
+  clientt.ev.on("messages.upsert", async ({ messages }) => {
     try {
       let m = messages[0]
       if (!m.message) return
+
       m.message =
         Object.keys(m.message)[0] === "ephemeralMessage"
           ? m.message.ephemeralMessage.message
           : m.message
+
       if (m.key && m.key.remoteJid === "status@broadcast") return
-      if (!client.public && !m.key.fromMe && messages.type === "notify") return
+      if (!clientt.public && !m.key.fromMe && messages.type === "notify") return
       if (m.key.id.startsWith("BAE5") && m.key.id.length === 16) return
-      m = await smsg(client, m)
-      await handler(client, m, messages)
+
+      m = await smsg(clientt, m)
+      handler(clientt, m, messages)
     } catch (err) {
       console.log(err)
     }
   })
 
-client.ev.on("group-participants.update", async (anu) => {
-   await participantsUpdate(client, anu)
-})
+  clientt.ev.on("group-participants.update", async (anu) => {
+    await participantsUpdate(clientt, anu)
+  })
 
-  client.decodeJid = (jid) => {
+  clientt.decodeJid = (jid) => {
     if (!jid) return jid
     if (/:\d+@/gi.test(jid)) {
       let decode = jidDecode(jid) || {}
@@ -372,39 +381,39 @@ client.ev.on("group-participants.update", async (anu) => {
     } else return jid
   }
 }
-function enqueue(jid, task) {
-  const key = jid || '__unknown__'
-  let state = sendQueues.get(key)
-  if (!state) {
-    state = { jobs: [], running: false }
-    sendQueues.set(key, state)
-  }
-  state.jobs.push(task)
-  runQueue(key, state)
+
+function enqueue(task) {
+  queue.push(task)
+  run()
 }
 
-async function runQueue(key, state) {
-  if (state.running) return
-  state.running = true
+let lastWasRateLimit = false
 
-  while (state.jobs.length) {
-    const job = state.jobs.shift()
+async function run() {
+  if (running) return
+  running = true
+
+  while (queue.length) {
+    const job = queue.shift()
     try {
       await job()
+      lastWasRateLimit = false
     } catch (e) {
-      // Cada tarea se encarga de resolver/rechazar su propia promesa. Este
-      // catch solo protege al trabajador de la cola ante errores inesperados.
-      log.error(`Error al enviar mensaje: ${e?.message || e}`)
+      if (String(e).includes('rate-overlimit')) {
+        log.warn('Rate limit detectado, esperando antes de reintentar…')
+        lastWasRateLimit = true
+        await new Promise(r => setTimeout(r, 2000))
+        queue.unshift(job)
+      } else {
+        log.error(`Error al enviar mensaje: ${e?.message || e}`)
+        lastWasRateLimit = false
+      }
     }
-    await new Promise(r => setTimeout(r, DELAY_NORMAL))
+
+    await new Promise(r => setTimeout(r, lastWasRateLimit ? DELAY_AFTER_RATELIMIT : DELAY_NORMAL))
   }
 
-  state.running = false
-  if (!state.jobs.length) {
-    sendQueues.delete(key)
-  } else {
-    runQueue(key, state)
-  }
+  running = false
 }
 
 export function patchSendMessage(client) {
@@ -415,26 +424,9 @@ export function patchSendMessage(client) {
 
   client.sendMessage = (jid, content, options = {}) => {
     return new Promise((resolve, reject) => {
-      enqueue(jid, async () => {
-        let attempt = 0
-        while (true) {
-          try {
-            const res = await original(jid, content, options)
-            resolve(res)
-            return
-          } catch (error) {
-            const isRateLimit = String(error).toLowerCase().includes('rate-overlimit')
-            if (!isRateLimit || attempt >= MAX_SEND_RETRIES) {
-              // Antes este caso solo se registraba en consola y dejaba la
-              // promesa pendiente para siempre, atascando el comando.
-              reject(error)
-              return
-            }
-            attempt += 1
-            log.warn(`Límite de WhatsApp en ${jid}; reintento ${attempt}/${MAX_SEND_RETRIES}…`)
-            await new Promise(r => setTimeout(r, DELAY_AFTER_RATELIMIT * attempt))
-          }
-        }
+      enqueue(async () => {
+        const res = await original(jid, content, options)
+        resolve(res)
       })
     })
   }
@@ -459,20 +451,47 @@ function clockString(ms) {
   return [d, 'd ️', h, 'h ', m, 'm ', s, 's '].map((v) => v.toString().padStart(2, 0)).join('')
 }
 
+function showFatalError(err, title = 'FATAL ERROR') {
+  const stack = err?.stack || String(err || 'Unknown error')
+  const lines = stack.split('\n').filter(Boolean)
+
+  const firstLine = lines[0] || 'Unknown error'
+  const fileLine =
+    lines.find(line => line.includes('.js:') || line.includes('.mjs:')) ||
+    lines[1] ||
+    'No se pudo detectar archivo'
+
+  console.log(
+    '\n' +
+    chalk.bgRed.white.bold(` ✖  ${title} `) +
+    '  ' +
+    chalk.redBright(firstLine) +
+    '\n' +
+    chalk.redBright(fileLine) +
+    '\n'
+  )
+}
+
 ;(async () => {
-  global.loadDatabase()
-  log.success('Base de datos cargada correctamente.')
+  try {
+    global.loadDatabase()
+    log.success('Base de datos cargada correctamente.')
 
-  const hasSession = hasMainSession()
-  LOGIN_METHOD = hasSession ? null : await uPLoader()
+    const hasSession = hasMainSession()
+    LOGIN_METHOD = hasSession ? null : await uPLoader()
 
-  await startBot()
+    await startBot()
+  } catch (err) {
+    showFatalError(err, 'BOOT ERROR')
+    process.exit(1)
+  }
 })()
 
 process.on('uncaughtException', (err) => {
-  console.log('\n' + chalk.bgRed.white.bold(' ✖  FATAL ERROR ') + '  ' + chalk.redBright(err.stack || err) + '\n')
+  showFatalError(err, 'UNCAUGHT EXCEPTION')
 })
 
 process.on('unhandledRejection', (reason) => {
-  console.log('\n' + chalk.bgYellow.black.bold(' ⚠  UNHANDLED REJECTION ') + '  ' + chalk.yellow(reason) + '\n')
+  const err = reason instanceof Error ? reason : new Error(String(reason))
+  showFatalError(err, 'UNHANDLED REJECTION')
 })
