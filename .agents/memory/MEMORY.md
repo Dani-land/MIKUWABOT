@@ -1,1 +1,2 @@
 - [WhatsApp send concurrency](whatsapp-send-concurrency.md) — keep outbound queues per chat and always settle failed sends.
+- [Command loader syntax compatibility](command-loader-syntax.md) — validate dynamic modules with the loader's parser, not only Node.

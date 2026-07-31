@@ -11,10 +11,12 @@ export const participantsUpdate = async (client, anu) => {
 
         // group-participants.update puede llegar antes que el primer mensaje
         // del grupo. En ese caso initDB aún no creó esta entrada.
-        global.db.data.chats[anu.id] ||= {}
+        if (!global.db.data.chats[anu.id]) {
+            global.db.data.chats[anu.id] = {}
+        }
         const chat = global.db.data.chats[anu.id]
-        chat.welcome ??= true
-        chat.alerts ??= true
+        if (typeof chat.welcome !== 'boolean') chat.welcome = true
+        if (typeof chat.alerts !== 'boolean') chat.alerts = true
 
         // En grupos grandes groupMetadata puede tardar o fallar. El caché
         // deduplica las consultas y permite continuar con datos mínimos.
