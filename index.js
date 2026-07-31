@@ -22,6 +22,7 @@ import readline from "readline"
 import os from "os"
 import qrcode from "qrcode-terminal"
 import parsePhoneNumber from "awesome-phonenumber"
+import NodeCache from "node-cache"
 import { smsg } from "./lib/message.js"
 import db from "./lib/system/database.js"
 import { startSubBot } from './lib/subs.js'
@@ -206,6 +207,22 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: "silent" })
+  const msgRetryCounterCache = new NodeCache({ stdTTL: 0, checkperiod: 0 })
+  const sentMessages = new Map()
+  const maxStoredMessages = 2000
+
+  const messageStoreKey = (key) =>
+    key?.remoteJid && key?.id ? `${key.remoteJid}:${key.id}` : null
+
+  const rememberMessage = (message) => {
+    const key = messageStoreKey(message?.key)
+    if (!key || !message?.message) return
+    sentMessages.set(key, message.message)
+
+    while (sentMessages.size > maxStoredMessages) {
+      sentMessages.delete(sentMessages.keys().next().value)
+    }
+  }
 
   console.info = () => {}
   console.debug = () => {}
@@ -221,12 +238,16 @@ async function startBot() {
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: true,
     syncFullHistory: false,
-    getMessage: async () => undefined,
+    // WhatsApp may request a sent message again when the phone could not
+    // decrypt it on the first attempt. Returning the original payload lets
+    // Baileys retransmit it instead of leaving "Esperando mensaje" forever.
+    getMessage: async (key) => sentMessages.get(messageStoreKey(key)),
+    msgRetryCounterCache,
     keepAliveIntervalMs: 45000,
     maxIdleTimeMs: 60000,
   })
 
-  patchSendMessage(clientt)
+  patchSendMessage(clientt, rememberMessage)
   global.client = clientt
   clientt.isInit = false
   clientt.ev.on("creds.update", saveCreds)
@@ -348,24 +369,28 @@ async function startBot() {
     }
   })
 
-  clientt.ev.on("messages.upsert", async ({ messages }) => {
-    try {
-      let m = messages[0]
-      if (!m.message) return
+  clientt.ev.on("messages.upsert", async ({ messages = [] }) => {
+    // Baileys can deliver several messages in one upsert. Process all of
+    // them and await the handler so async failures are caught here instead
+    // of becoming unhandled rejections.
+    for (const rawMessage of messages) {
+      try {
+        if (!rawMessage?.message) continue
 
-      m.message =
-        Object.keys(m.message)[0] === "ephemeralMessage"
-          ? m.message.ephemeralMessage.message
-          : m.message
+        let m = rawMessage
+        m.message =
+          Object.keys(m.message)[0] === "ephemeralMessage"
+            ? m.message.ephemeralMessage.message
+            : m.message
 
-      if (m.key && m.key.remoteJid === "status@broadcast") return
-      if (!clientt.public && !m.key.fromMe && messages.type === "notify") return
-      if (m.key.id.startsWith("BAE5") && m.key.id.length === 16) return
+        if (m.key?.remoteJid === "status@broadcast") continue
+        if (m.key?.id?.startsWith("BAE5") && m.key.id.length === 16) continue
 
-      m = await smsg(clientt, m)
-      handler(clientt, m, messages)
-    } catch (err) {
-      console.log(err)
+        m = await smsg(clientt, m)
+        await handler(clientt, m)
+      } catch (err) {
+        console.error("[messages.upsert] Error procesando mensaje:", err)
+      }
     }
   })
 
@@ -416,7 +441,7 @@ async function run() {
   running = false
 }
 
-export function patchSendMessage(client) {
+export function patchSendMessage(client, onMessageSent) {
   if (client._sendMessagePatched) return
   client._sendMessagePatched = true
 
@@ -426,6 +451,7 @@ export function patchSendMessage(client) {
     return new Promise((resolve, reject) => {
       enqueue(async () => {
         const res = await original(jid, content, options)
+        onMessageSent?.(res)
         resolve(res)
       })
     })

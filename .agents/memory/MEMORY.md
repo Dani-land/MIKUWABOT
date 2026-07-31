@@ -1,0 +1,1 @@
+- [Package installation firewall](package-install-firewall.md) — separate security-policy install failures from application code diagnosis.
