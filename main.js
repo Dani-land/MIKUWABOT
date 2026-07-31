@@ -11,6 +11,13 @@ import { logCommandToChannel, logNewUserToChannel } from './lib/channelLogger.js
 const groupMetaCache = new Map()
 const lidCache = new Map()
 
+function withTimeout(promise, ms, fallback = null) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+    ])
+}
+
 setInterval(() => {
     const now = Date.now()
     for (const [jid, entry] of groupMetaCache) {
@@ -26,7 +33,15 @@ async function getCachedGroupMeta(client, jid) {
     const now = Date.now()
     const cached = groupMetaCache.get(jid)
     if (cached && (now - cached.ts) < 5 * 60 * 1000) return cached.data
-    const meta = await client.groupMetadata(jid).catch(() => null)
+
+    const TIMEOUT = Symbol('timeout')
+    const meta = await withTimeout(client.groupMetadata(jid).catch(() => null), 8000, TIMEOUT)
+
+    if (meta === TIMEOUT) {
+        console.warn(`[ ⚠️ ] groupMetadata tardó más de 8s en ${jid} — se sigue sin bloquear.`)
+        return cached?.data || null
+    }
+
     if (meta) groupMetaCache.set(jid, { data: meta, ts: now })
     return meta
 }
