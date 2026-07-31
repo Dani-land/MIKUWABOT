@@ -344,7 +344,7 @@ async function startBot() {
 
   client.ev.on("messages.upsert", async ({ messages }) => {
     try {
-      const m = messages[0]
+      let m = messages[0]
       if (!m.message) return
       m.message =
         Object.keys(m.message)[0] === "ephemeralMessage"
