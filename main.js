@@ -4,11 +4,10 @@ import chalk from 'chalk'
 import gradient from 'gradient-string'
 import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
-import { resolveLidToRealJid } from './lib/utils.js'
+import { resolveLidToRealJid, getCachedGroupMetadata } from './lib/utils.js'
 import antiStatus from './commands/antiestados.js'
 import { logCommandToChannel, logNewUserToChannel } from './lib/channelLogger.js'
 
-const groupMetaCache = new Map()
 const lidCache = new Map()
 
 function withTimeout(promise, ms, fallback = null) {
@@ -20,9 +19,6 @@ function withTimeout(promise, ms, fallback = null) {
 
 setInterval(() => {
     const now = Date.now()
-    for (const [jid, entry] of groupMetaCache) {
-        if (now - entry.ts > 15 * 60 * 1000) groupMetaCache.delete(jid)
-    }
     for (const [key, entry] of lidCache) {
         if (now - entry.ts > 10 * 60 * 1000) lidCache.delete(key)
     }
@@ -30,20 +26,7 @@ setInterval(() => {
 
 async function getCachedGroupMeta(client, jid) {
     if (!jid?.endsWith('@g.us')) return null
-    const now = Date.now()
-    const cached = groupMetaCache.get(jid)
-    if (cached && (now - cached.ts) < 5 * 60 * 1000) return cached.data
-
-    const TIMEOUT = Symbol('timeout')
-    const meta = await withTimeout(client.groupMetadata(jid).catch(() => null), 8000, TIMEOUT)
-
-    if (meta === TIMEOUT) {
-        console.warn(`[ ⚠️ ] groupMetadata tardó más de 8s en ${jid} — se sigue sin bloquear.`)
-        return cached?.data || null
-    }
-
-    if (meta) groupMetaCache.set(jid, { data: meta, ts: now })
-    return meta
+    return getCachedGroupMetadata(client, jid)
 }
 
 async function cachedResolveLid(jid, client, chat) {
@@ -325,8 +308,14 @@ async function handleMessage(client, m) {
     if (cmdData.isAdmin && !isAdmin) return global.dfail('admin', m)
     if (cmdData.botAdmin && !isBotAdmin) return global.dfail('botAdmin', m)
 
+    let composing = false
     if (command) {
-        await client.sendPresenceUpdate('composing', m.chat)
+        try {
+            await withTimeout(client.sendPresenceUpdate('composing', m.chat), 3000)
+            composing = true
+        } catch (err) {
+            console.warn('[ ⚠️ ] No se pudo actualizar el estado de escritura:', err?.message || err)
+        }
     }
 
     try {
@@ -359,6 +348,13 @@ async function handleMessage(client, m) {
         console.error("Error ejecutando comando:", err)
 
         await logCommandToChannel({ client, botId: selfId, user: sender, chat: m.chat, command, success: false, errorMessage: err.message || String(err) })
+    }
+    if (composing) {
+        try {
+            await withTimeout(client.sendPresenceUpdate('paused', m.chat), 3000)
+        } catch (err) {
+            console.warn('[ ⚠️ ] No se pudo detener el estado de escritura:', err?.message || err)
+        }
     }
     for (const name in global.plugins) {
         const plugin = global.plugins[name]

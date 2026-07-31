@@ -135,10 +135,12 @@ const BOT_TYPES = [
   { name: 'SubBot', folder: './Sessions/Subs', starter: startSubBot }
 ]
 
-const queue = []
-let running = false
-const DELAY_NORMAL = 300
-const DELAY_AFTER_RATELIMIT = 3000
+// No uses una sola cola para todos los chats: un envío lento o rechazado en un
+// grupo grande no debe bloquear las respuestas de los demás grupos.
+const sendQueues = new Map()
+const DELAY_NORMAL = 100
+const DELAY_AFTER_RATELIMIT = 1500
+const MAX_SEND_RETRIES = 2
 
 global.conns = global.conns || []
 const reconnecting = new Set()
@@ -342,10 +344,9 @@ async function startBot() {
     }
   })
 
-  let m
   client.ev.on("messages.upsert", async ({ messages }) => {
     try {
-      m = messages[0]
+      const m = messages[0]
       if (!m.message) return
       m.message =
         Object.keys(m.message)[0] === "ephemeralMessage"
@@ -355,7 +356,7 @@ async function startBot() {
       if (!client.public && !m.key.fromMe && messages.type === "notify") return
       if (m.key.id.startsWith("BAE5") && m.key.id.length === 16) return
       m = await smsg(client, m)
-      handler(client, m, messages)
+      await handler(client, m, messages)
     } catch (err) {
       console.log(err)
     }
@@ -373,37 +374,39 @@ client.ev.on("group-participants.update", async (anu) => {
     } else return jid
   }
 }
-function enqueue(task) {
-  queue.push(task)
-  run()
+function enqueue(jid, task) {
+  const key = jid || '__unknown__'
+  let state = sendQueues.get(key)
+  if (!state) {
+    state = { jobs: [], running: false }
+    sendQueues.set(key, state)
+  }
+  state.jobs.push(task)
+  runQueue(key, state)
 }
 
-let lastWasRateLimit = false
+async function runQueue(key, state) {
+  if (state.running) return
+  state.running = true
 
-async function run() {
-  if (running) return
-  running = true
-
-  while (queue.length) {
-    const job = queue.shift()
+  while (state.jobs.length) {
+    const job = state.jobs.shift()
     try {
       await job()
-      lastWasRateLimit = false
     } catch (e) {
-      if (String(e).includes('rate-overlimit')) {
-        log.warn('Rate limit detectado, esperando antes de reintentar…')
-        lastWasRateLimit = true
-        await new Promise(r => setTimeout(r, 2000))
-        queue.unshift(job)
-      } else {
-        log.error(`Error al enviar mensaje: ${e?.message || e}`)
-        lastWasRateLimit = false
-      }
+      // Cada tarea se encarga de resolver/rechazar su propia promesa. Este
+      // catch solo protege al trabajador de la cola ante errores inesperados.
+      log.error(`Error al enviar mensaje: ${e?.message || e}`)
     }
-    await new Promise(r => setTimeout(r, lastWasRateLimit ? DELAY_AFTER_RATELIMIT : DELAY_NORMAL))
+    await new Promise(r => setTimeout(r, DELAY_NORMAL))
   }
 
-  running = false
+  state.running = false
+  if (!state.jobs.length) {
+    sendQueues.delete(key)
+  } else {
+    runQueue(key, state)
+  }
 }
 
 export function patchSendMessage(client) {
@@ -414,9 +417,26 @@ export function patchSendMessage(client) {
 
   client.sendMessage = (jid, content, options = {}) => {
     return new Promise((resolve, reject) => {
-      enqueue(async () => {
-        const res = await original(jid, content, options)
-        resolve(res)
+      enqueue(jid, async () => {
+        let attempt = 0
+        while (true) {
+          try {
+            const res = await original(jid, content, options)
+            resolve(res)
+            return
+          } catch (error) {
+            const isRateLimit = String(error).toLowerCase().includes('rate-overlimit')
+            if (!isRateLimit || attempt >= MAX_SEND_RETRIES) {
+              // Antes este caso solo se registraba en consola y dejaba la
+              // promesa pendiente para siempre, atascando el comando.
+              reject(error)
+              return
+            }
+            attempt += 1
+            log.warn(`Límite de WhatsApp en ${jid}; reintento ${attempt}/${MAX_SEND_RETRIES}…`)
+            await new Promise(r => setTimeout(r, DELAY_AFTER_RATELIMIT * attempt))
+          }
+        }
       })
     })
   }
