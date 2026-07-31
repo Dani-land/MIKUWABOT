@@ -45,6 +45,14 @@ async function cachedResolveLid(jid, client, chat) {
 loadCommandsAndPlugins()
 
 export default async (client, m) => {
+  try {
+    await handleMessage(client, m)
+  } catch (err) {
+    console.error(chalk.red('[ ✘ ] Error no controlado en el manejador principal:'), err)
+  }
+}
+
+async function handleMessage(client, m) {
     if (!m.message) return
 
     await antiStatus(client, m)
@@ -144,7 +152,7 @@ export default async (client, m) => {
             JSON.parse(m.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson).id) ||
         ""
 
-    initDB(m, client)
+    await initDB(m, client)
 
     let usedPrefix = null
 
@@ -159,7 +167,7 @@ export default async (client, m) => {
         }
     }
 
-    const rawPrefijo = global.db.data.settings[selfId].prefijo || ""
+    const rawPrefijo = (global.db.data.settings[selfId] ||= {}).prefijo || ""
     const prefas = Array.isArray(rawPrefijo) ? rawPrefijo : rawPrefijo ? [rawPrefijo] : ['#', '/']
     const botname2 = global.db.data.settings[selfId].namebot2 || "Bot"
 
