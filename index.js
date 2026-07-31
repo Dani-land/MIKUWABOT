@@ -135,8 +135,6 @@ const BOT_TYPES = [
   { name: 'SubBot', folder: './Sessions/Subs', starter: startSubBot }
 ]
 
-// No uses una sola cola para todos los chats: un envío lento o rechazado en un
-// grupo grande no debe bloquear las respuestas de los demás grupos.
 const sendQueues = new Map()
 const DELAY_NORMAL = 100
 const DELAY_AFTER_RATELIMIT = 1500

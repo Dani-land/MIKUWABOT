@@ -6,7 +6,6 @@ import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
 import { resolveLidToRealJid, getCachedGroupMetadata } from './lib/utils.js'
 import antiStatus from './commands/antiestados.js'
-import { logCommandToChannel, logNewUserToChannel } from './lib/channelLogger.js'
 
 const lidCache = new Map()
 
@@ -320,7 +319,6 @@ async function handleMessage(client, m) {
 
     try {
         global.db.data.users = global.db.data.users || {}
-        const isNewUser = !global.db.data.users[sender]
         const user2 = global.db.data.users[sender] ||= {}
         user2.name = (pushname || 'Sin nombre').trim()
         user2.usedcommands = (user2.usedcommands || 0) + 1
@@ -338,16 +336,9 @@ async function handleMessage(client, m) {
             prefix: usedPrefix
         })
 
-        await logCommandToChannel({ client, botId: selfId, user: sender, chat: m.chat, command, success: true })
-
-        if (isNewUser) {
-            await logNewUserToChannel({ client, botId: selfId, user: sender, pushname })
-        }
     } catch (err) {
         m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
         console.error("Error ejecutando comando:", err)
-
-        await logCommandToChannel({ client, botId: selfId, user: sender, chat: m.chat, command, success: false, errorMessage: err.message || String(err) })
     }
     if (composing) {
         try {
