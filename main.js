@@ -4,20 +4,17 @@ import chalk from 'chalk'
 import gradient from 'gradient-string'
 import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
-import { resolveLidToRealJid, getCachedGroupMetadata } from './lib/utils.js'
+import { resolveLidToRealJid } from './lib/utils.js'
 import antiStatus from './commands/antiestados.js'
 
+const groupMetaCache = new Map()
 const lidCache = new Map()
-
-function withTimeout(promise, ms, fallback = null) {
-    return Promise.race([
-        promise,
-        new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
-    ])
-}
 
 setInterval(() => {
     const now = Date.now()
+    for (const [jid, entry] of groupMetaCache) {
+        if (now - entry.ts > 15 * 60 * 1000) groupMetaCache.delete(jid)
+    }
     for (const [key, entry] of lidCache) {
         if (now - entry.ts > 10 * 60 * 1000) lidCache.delete(key)
     }
@@ -25,7 +22,12 @@ setInterval(() => {
 
 async function getCachedGroupMeta(client, jid) {
     if (!jid?.endsWith('@g.us')) return null
-    return getCachedGroupMetadata(client, jid)
+    const now = Date.now()
+    const cached = groupMetaCache.get(jid)
+    if (cached && (now - cached.ts) < 5 * 60 * 1000) return cached.data
+    const meta = await client.groupMetadata(jid).catch(() => null)
+    if (meta) groupMetaCache.set(jid, { data: meta, ts: now })
+    return meta
 }
 
 async function cachedResolveLid(jid, client, chat) {
@@ -42,14 +44,6 @@ async function cachedResolveLid(jid, client, chat) {
 loadCommandsAndPlugins()
 
 export default async (client, m) => {
-  try {
-    await handleMessage(client, m)
-  } catch (err) {
-    console.error(chalk.red('[ ✘ ] Error no controlado en el manejador principal:'), err)
-  }
-}
-
-async function handleMessage(client, m) {
     if (!m.message) return
 
     await antiStatus(client, m)
@@ -149,7 +143,7 @@ async function handleMessage(client, m) {
             JSON.parse(m.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson).id) ||
         ""
 
-    await initDB(m, client)
+    initDB(m, client)
 
     let usedPrefix = null
 
@@ -164,7 +158,7 @@ async function handleMessage(client, m) {
         }
     }
 
-    const rawPrefijo = (global.db.data.settings[selfId] ||= {}).prefijo || ""
+    const rawPrefijo = global.db.data.settings[selfId].prefijo || ""
     const prefas = Array.isArray(rawPrefijo) ? rawPrefijo : rawPrefijo ? [rawPrefijo] : ['#', '/']
     const botname2 = global.db.data.settings[selfId].namebot2 || "Bot"
 
@@ -227,7 +221,7 @@ async function handleMessage(client, m) {
             'suggest', 'invite', 'invitar', 'setname', 'setbotname', 'setbanner',
             'setmenubanner', 'setusername', 'setpfp', 'setimage', 'setbotcurrency',
             'setbotprefix', 'setstatus', 'setbotowner', 'reload', 'codemod', 'qrmod',
-            'codepremium', 'qrpremium', 'code'
+            'codepremium', 'qrpremium'
         ]
         const allowedInPrivateForSelf = ['s', 'suno']
         const settings = global.db.data.settings[selfId]
@@ -307,14 +301,8 @@ async function handleMessage(client, m) {
     if (cmdData.isAdmin && !isAdmin) return global.dfail('admin', m)
     if (cmdData.botAdmin && !isBotAdmin) return global.dfail('botAdmin', m)
 
-    let composing = false
     if (command) {
-        try {
-            await withTimeout(client.sendPresenceUpdate('composing', m.chat), 3000)
-            composing = true
-        } catch (err) {
-            console.warn('[ ⚠️ ] No se pudo actualizar el estado de escritura:', err?.message || err)
-        }
+        await client.sendPresenceUpdate('composing', m.chat)
     }
 
     try {
@@ -335,17 +323,9 @@ async function handleMessage(client, m) {
             usedPrefix,
             prefix: usedPrefix
         })
-
     } catch (err) {
         m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
         console.error("Error ejecutando comando:", err)
-    }
-    if (composing) {
-        try {
-            await withTimeout(client.sendPresenceUpdate('paused', m.chat), 3000)
-        } catch (err) {
-            console.warn('[ ⚠️ ] No se pudo detener el estado de escritura:', err?.message || err)
-        }
     }
     for (const name in global.plugins) {
         const plugin = global.plugins[name]
