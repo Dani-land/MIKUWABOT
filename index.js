@@ -248,6 +248,7 @@ async function startBot() {
   })
 
   patchSendMessage(clientt, rememberMessage)
+  patchRelayMessage(clientt, rememberMessage)
   global.client = clientt
   clientt.isInit = false
   clientt.ev.on("creds.update", saveCreds)
@@ -439,6 +440,21 @@ async function run() {
   }
 
   running = false
+}
+
+export function patchRelayMessage(client, onMessageSent) {
+  if (client._relayMessagePatched) return
+  client._relayMessagePatched = true
+
+  const original = client.relayMessage.bind(client)
+
+  client.relayMessage = async (jid, message, options = {}) => {
+    const msgId = await original(jid, message, options)
+    if (msgId && jid) {
+      onMessageSent?.({ key: { remoteJid: jid, id: msgId, fromMe: true }, message })
+    }
+    return msgId
+  }
 }
 
 export function patchSendMessage(client, onMessageSent) {
