@@ -46,10 +46,6 @@ loadCommandsAndPlugins()
 export default async (client, m) => {
     if (!m.message) return
 
-    // Initialize state before global middlewares. Several middlewares read
-    // bot settings and chat options on the first message in a chat.
-    initDB(m, client)
-
     await antiStatus(client, m)
 
     if (m.message.viewOnceMessageV2) {
@@ -146,6 +142,8 @@ export default async (client, m) => {
         (m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson &&
             JSON.parse(m.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson).id) ||
         ""
+
+    initDB(m, client)
 
     let usedPrefix = null
 
@@ -297,11 +295,6 @@ export default async (client, m) => {
         }[type]
         if (msg) return m.reply(msg)
     }
-
-    // Si el grupo de WhatsApp está en modo "solo admins" (announce) y el bot
-    // no es admin, no intentar enviar nada: WhatsApp rechazaría el mensaje
-    // y dejaría la cola de envío bloqueada indefinidamente.
-    if (isGroup && metadata?.announce && !isBotAdmin) return
 
     if (cmdData.isOwner && !isOwner) return global.dfail('owner', m)
     if (cmdData.isModeration && !isModeration) return global.dfail('moderation', m)
