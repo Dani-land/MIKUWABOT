@@ -449,11 +449,14 @@ export function patchRelayMessage(client, onMessageSent) {
   const original = client.relayMessage.bind(client)
 
   client.relayMessage = async (jid, message, options = {}) => {
-    const msgId = await original(jid, message, options)
+    const result = await original(jid, message, options)
+    // Some Baileys forks return void instead of the messageId string.
+    // Fall back to the explicit messageId passed in options when available.
+    const msgId = (typeof result === 'string' && result) || options.messageId
     if (msgId && jid) {
       onMessageSent?.({ key: { remoteJid: jid, id: msgId, fromMe: true }, message })
     }
-    return msgId
+    return result
   }
 }
 
