@@ -69,7 +69,6 @@ class SaveTube {
   }
 }
 
-// API de Lempi para video (confirmada con el otro bot)
 const LEMPI_API_URL = 'https://api.lempi.lat/dl/ytv?url='
 const LEMPI_API_KEY = 'lem715'
 
@@ -114,7 +113,6 @@ async function sendPlayableVideo(client, m, dl, title, thumbBuffer, extraHeaders
         mimetype: 'video/mp4',
         fileName,
         ptv: false,
-        caption: `✦ ${title}`,
         jpegThumbnail: thumbBuffer || undefined,
       },
       { quoted: m }
@@ -131,7 +129,6 @@ async function sendPlayableVideo(client, m, dl, title, thumbBuffer, extraHeaders
       mimetype: 'video/mp4',
       fileName,
       ptv: false,
-      caption: `✦ ${title}`,
       jpegThumbnail: thumbBuffer || undefined,
     },
     { quoted: m }
@@ -196,18 +193,36 @@ async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocumen
     : await resolveVideoDownload(url, title)
 
   const { dl, title: apiTitle, headers: dlHeaders } = result
+  const finalTitle = apiTitle || title
 
+  // ── Ficha bonita con portada + descripción, antes de mandar el archivo ──────
   let thumbBuffer = null
   if (videoInfo?.thumbnail) {
     try {
       const response = await fetch(videoInfo.thumbnail)
       const arrayBuffer = await response.arrayBuffer()
-      thumbBuffer = await sharp(Buffer.from(arrayBuffer)).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
+      thumbBuffer = await sharp(Buffer.from(arrayBuffer)).resize(500, 281).jpeg({ quality: 85 }).toBuffer()
     } catch {}
   }
 
-  const finalTitle = apiTitle || title
+  const infoLines = [`✿ *${finalTitle}*`, '']
+  if (videoInfo?.duration) infoLines.push(`⌗» Duración › ${videoInfo.duration}`)
+  if (videoInfo?.views !== undefined) infoLines.push(`⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}`)
+  if (videoInfo?.author?.name) infoLines.push(`⌗» Canal › ${videoInfo.author.name}`)
+  if (videoInfo?.ago) infoLines.push(`⌗» Publicado › ${videoInfo.ago}`)
+  if (result.quality) infoLines.push(`⌗» Calidad › ${result.quality}`)
+  if (result.sizeText) infoLines.push(`⌗» Tamaño › ${result.sizeText}`)
+  infoLines.push('', isAudio ? '✐ Enviando audio...' : '✐ Enviando video...')
 
+  const infoText = infoLines.join('\n')
+
+  if (thumbBuffer) {
+    await client.sendMessage(m.chat, { image: thumbBuffer, caption: infoText }, { quoted: m })
+  } else {
+    await client.sendMessage(m.chat, { text: infoText }, { quoted: m })
+  }
+
+  // ── Envío del archivo ─────────────────────────────────────────────────────
   if (isAudio) {
     await client.sendMessage(
       m.chat,
@@ -215,21 +230,16 @@ async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocumen
         [asDocument ? 'document' : 'audio']: { url: dl },
         mimetype: 'audio/mpeg',
         fileName: `${finalTitle}.mp3`,
-        jpegThumbnail: thumbBuffer || undefined,
       },
       { quoted: m }
     )
     return
   }
 
-  const caption = result.quality || result.sizeText
-    ? `✦ ${finalTitle}\n${result.quality ? `✧ Calidad › *${result.quality}*` : ''}`.trim()
-    : `✦ ${finalTitle}`
-
   if (asDocument) {
     await client.sendMessage(
       m.chat,
-      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4', caption },
+      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4' },
       { quoted: m }
     )
     return
@@ -248,7 +258,7 @@ async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocumen
   if (exceedsLimit) {
     await client.sendMessage(
       m.chat,
-      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4', caption },
+      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4' },
       { quoted: m }
     )
   } else {
@@ -264,24 +274,18 @@ export default {
 
   category: 'downloader',
 
-  run: async ({ client, m, args, command, text, usedPrefix }) => {
-    const prefix = usedPrefix || global.prefix || '.'
-
-    console.log('DEBUG BOTÓN →', { command, text })
-
+  run: async ({ client, m, args, command, text }) => {
     try {
       if (!text.trim()) {
         return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
       }
-
-      const esURL = isYTUrl(text)
 
       const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3', 'playdoc'].includes(command)
       const asDocument = ['playdoc', 'mp4doc'].includes(command)
 
       let url, title, videoInfo
 
-      if (esURL) {
+      if (isYTUrl(text)) {
         url = text
         try {
           videoInfo = await yts({
@@ -291,53 +295,17 @@ export default {
         } catch {
           title = 'Video'
         }
-
-        return sendResult({ client, m, url, title, videoInfo, isAudio, asDocument })
+      } else {
+        const search = await yts(text)
+        if (!search.all.length) {
+          return m.reply('ꕥ No encontré resultados.')
+        }
+        videoInfo = search.all[0]
+        title = videoInfo.title
+        url = videoInfo.url
       }
 
-      const search = await yts(text)
-      if (!search.all.length) {
-        return m.reply('ꕥ No encontré resultados.')
-      }
-
-      videoInfo = search.all[0]
-      ;({ title, url } = videoInfo)
-
-      const info = `
-✿ *${title}*
-
-⌗» Duración › ${videoInfo.duration}
-⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}
-⌗» Canal › ${videoInfo.author?.name || 'Desconocido'}
-⌗» Publicado › ${videoInfo.ago || 'Desconocido'}
-
-✧ Elige en qué formato lo quieres:
-`.trim()
-
-      let thumb
-      try {
-        thumb = (await client.getFile(videoInfo.thumbnail))?.data
-      } catch {}
-
-      const buttons = [
-        { buttonId: `${prefix}mp4 ${url}`, buttonText: { displayText: '🎬 Video (MP4)' }, type: 1 },
-        { buttonId: `${prefix}mp4doc ${url}`, buttonText: { displayText: '📁 Video documento' }, type: 1 },
-        { buttonId: `${prefix}mp3 ${url}`, buttonText: { displayText: '🎵 Audio (MP3)' }, type: 1 },
-        { buttonId: `${prefix}playdoc ${url}`, buttonText: { displayText: '📁 Audio documento' }, type: 1 },
-      ]
-
-      await client.sendMessage(
-        m.chat,
-        {
-          ...(thumb ? { image: thumb } : {}),
-          text: thumb ? undefined : info,
-          caption: thumb ? info : undefined,
-          footer: 'Toca una opción',
-          buttons,
-          headerType: thumb ? 4 : 1,
-        },
-        { quoted: m }
-      )
+      await sendResult({ client, m, url, title, videoInfo, isAudio, asDocument })
     } catch (e) {
       console.log(e)
       m.reply(`✘ Error detectado.\n\n⌗» ${e.message}`)
