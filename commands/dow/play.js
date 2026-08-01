@@ -167,16 +167,23 @@ async function resolveVideoDownload(url, title) {
         continue
       }
 
-      if (!data?.status || !data?.descarga?.url) {
+      if (!data?.status) {
         lastError = new Error(data?.mensaje || data?.message || 'La API no devolvió un resultado válido.')
         continue
       }
 
+      // Lempi ha usado distintos nombres de campo con el tiempo (datos vs descarga)
+      const info = data.datos || data.descarga
+      if (!info?.url) {
+        lastError = new Error('La API no devolvió un link de descarga.')
+        continue
+      }
+
       return {
-        dl: data.descarga.url,
+        dl: info.url,
         title: data.titulo || title,
-        quality: data.descarga.calidad || quality || null,
-        sizeText: data.descarga.tamaño || null,
+        quality: info.calidad || quality || null,
+        sizeText: info.tamaño || null,
         headers: BROWSER_HEADERS,
       }
     } catch (e) {
