@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 
 const NYX_API_URL = 'https://nyxdlapi.vercel.app/api/search/pinterest'
-const NYX_API_KEY = 'Danielrxz_miku67'
+const NYX_API_KEY = 'nyx_ReSxJ4ausLzmb6-HIXoZoOdmHUyCbvd0'
 
 async function searchPinterest(query, limit) {
   const url = `${NYX_API_URL}?q=${encodeURIComponent(query)}&limit=${limit}&apikey=${NYX_API_KEY}`
