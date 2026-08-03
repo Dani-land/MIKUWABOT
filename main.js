@@ -250,35 +250,42 @@ export default async (client, m) => {
         (botJidLid && stripDevice(p.id) === botJidLid) ||
         (p.lid && (stripDevice(p.lid) === botJidPhone || (botJidLid && stripDevice(p.lid) === botJidLid)))
 
-    // Helper: ¿este participante es el remitente?
-    const isParticipantSender = (p, sJid) =>
-        sameJid(p.id, sJid) ||
-        (p.lid && sameJid(p.lid, sJid))
+    // WhatsApp puede representar un participante como número, LID,
+    // número con dispositivo o phoneNumber. Resolvemos todos los formatos
+    // antes de comprobar permisos para no rechazar a administradores reales.
+    const adminJids = new Set()
+    for (const participant of participants) {
+        if (!participant?.admin) continue
 
-    // Construye lista de admins incluyendo AMBOS formatos (id y lid) de cada participante admin
-    const groupAdmins = []
-    for (const p of participants) {
-        if (p.admin) {
-            groupAdmins.push(stripDevice(p.id))
-            if (p.lid) groupAdmins.push(stripDevice(p.lid))
+        const identities = [
+            participant.id,
+            participant.lid,
+            participant.phoneNumber,
+        ].filter(Boolean)
+
+        const resolvedIdentities = await Promise.all(
+            identities.map(identity => cachedResolveLid(identity, client, m.chat))
+        )
+
+        for (const identity of [...identities, ...resolvedIdentities]) {
+            const normalized = stripDevice(identity)
+            if (normalized) adminJids.add(normalized)
         }
     }
 
-    // senderJid: ya viene resuelto por fixLid en smsg, solo eliminamos sufijo de dispositivo
+    // senderJid: ya viene resuelto por smsg/main, solo eliminamos dispositivo.
     const senderJid = stripDevice(sender)
 
-    // isAdmin: remitente es admin (busca por teléfono y por LID)
-    const isAdmin = isGroup ? (
-        groupAdmins.includes(senderJid) ||
-        participants.some(p => p.admin && isParticipantSender(p, senderJid))
-    ) : false
+    const isAdmin = isGroup
+        ? [...adminJids].some(adminJid => sameJid(adminJid, senderJid))
+        : false
 
-    // isBotAdmin: bot es admin (busca por teléfono Y por LID del bot)
-    const isBotAdmin = isGroup ? (
-        groupAdmins.includes(botJidPhone) ||
-        (botJidLid && groupAdmins.includes(botJidLid)) ||
-        participants.some(p => p.admin && isParticipantBot(p))
-    ) : false
+    const isBotAdmin = isGroup
+        ? [...adminJids].some(adminJid =>
+            sameJid(adminJid, botJidPhone) ||
+            (botJidLid && sameJid(adminJid, botJidLid))
+        )
+        : false
 
     const normalizeToJid = (phone) => {
         if (!phone) return null
