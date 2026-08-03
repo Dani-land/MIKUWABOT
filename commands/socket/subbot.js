@@ -13,19 +13,6 @@ export default {
   category: 'socket',
 
   run: async ({client, m, args, command, usedPrefix}) => {
-    if (!args[0]) {
-      return client.reply(
-        m.chat,
-`✦ Debes escribir tu número de teléfono junto con el comando.
-
-✎ Uso: *${usedPrefix || '.'}code [tu número]*
-> Ejemplo: *${usedPrefix || '.'}code 5219876543210*
-
-✎ Nota: escribe tu número completo con código de país, sin espacios ni símbolos.`,
-        m,
-      );
-    }
-
     let time = global.db.data.users[m.sender].Subs + 120000 || '';
 
     if (new Date() - global.db.data.users[m.sender].Subs < 120000) {
@@ -74,7 +61,8 @@ export default {
       return s
     }
 
-    const rawPhone = args[0].replace(/\D/g, '')
+    // Si no se pasó número, se usa el del remitente (m.sender)
+    const rawPhone = (args[0] || m.sender).replace(/\D/g, '')
 
     if (!rawPhone || rawPhone.length < 7) {
       return client.reply(
