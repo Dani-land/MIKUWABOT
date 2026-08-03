@@ -26,6 +26,24 @@ const getAllowedBots = (mainBotJid) => {
   return [...new Set([...subs, ...mods, ...prems, connectedSockets, mainBotJid].flat().filter(Boolean))]
 }
 
+const getParticipantJids = async (participants, client, groupJid) => {
+  const identities = participants.flatMap((participant) => [
+    participant?.id,
+    participant?.lid,
+    participant?.phoneNumber,
+  ]).filter(Boolean)
+
+  const resolved = await Promise.all(
+    identities.map((identity) => resolveLidToRealJid(identity, client, groupJid))
+  )
+
+  return [...new Set(
+    [...identities, ...resolved]
+      .map(normalizeJid)
+      .filter(Boolean)
+  )]
+}
+
 export default {
   command: ['setprimary'],
   category: 'grupo',
@@ -40,10 +58,14 @@ export default {
       if (!who2) {
         return client.reply(m.chat, `《✧》 Por favor menciona un bot para convertirlo en primario.`, m)
       }
-      const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch(() => {}) : ''
-       const groupParticipants = groupMetadata?.participants?.flatMap((p) => [p.id, p.lid])
-         .filter(Boolean)
-         .map(normalizeJid) || []
+      const groupMetadata = m.isGroup
+        ? await client.groupMetadata(m.chat).catch(() => null)
+        : null
+      const groupParticipants = await getParticipantJids(
+        groupMetadata?.participants || [],
+        client,
+        m.chat
+      )
 
        const mainBotJid = normalizeJid(global.client?.user?.id)
       const allowedBots = getAllowedBots(mainBotJid)
