@@ -2,7 +2,7 @@ import fetch from 'node-fetch'
 
 const NYX_BASE = 'https://nyxdlapi.vercel.app'
 const NYX_TT_URL = `${NYX_BASE}/api/downloads/tiktok`
-const NYX_API_KEY = 'nyx_ReSxJ4ausLzmb6-HIXoZoOdmHUyCbvd0'
+const NYX_API_KEY = 'nyx_vDSYgjTlKOOLhz-_XmojwHjvH1_hp5c2'
 
 export default {
   command: ['tiktok', 'tt'],
