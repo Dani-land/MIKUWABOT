@@ -12,7 +12,20 @@ export default {
   command: ['code'],
   category: 'socket',
 
-  run: async ({client, m, args, command}) => {
+  run: async ({client, m, args, command, usedPrefix}) => {
+    if (!args[0]) {
+      return client.reply(
+        m.chat,
+`✦ Debes escribir tu número de teléfono junto con el comando.
+
+✎ Uso: *${usedPrefix || '.'}code [tu número]*
+> Ejemplo: *${usedPrefix || '.'}code 5219876543210*
+
+✎ Nota: escribe tu número completo con código de país, sin espacios ni símbolos.`,
+        m,
+      );
+    }
+
     let time = global.db.data.users[m.sender].Subs + 120000 || '';
 
     if (new Date() - global.db.data.users[m.sender].Subs < 120000) {
@@ -61,53 +74,15 @@ export default {
       return s
     }
 
-    // ── Extrae el número real del remitente de forma robusta ─────────────────
-    // m.sender puede ser un JID de teléfono ("521XXX@s.whatsapp.net") o un LID
-    // ("12345@lid") si fixLid no pudo resolver. Necesitamos el número puro.
-    async function getSenderPhone() {
-      // Si se pasó un número como argumento, úsalo directamente
-      if (args[0]) return args[0].replace(/\D/g, '')
-
-      const sender = m.sender || ''
-
-      // Caso 1: JID de teléfono normal → extrae el número
-      if (sender.endsWith('@s.whatsapp.net')) {
-        return sender.split('@')[0]
-      }
-
-      // Caso 2: LID → intenta resolverlo buscando en los participantes del grupo
-      if (sender.endsWith('@lid') && m.chat?.endsWith('@g.us')) {
-        try {
-          const meta = await client.groupMetadata(m.chat)
-          const lidBase = sender.split('@')[0]
-          for (const p of meta.participants || []) {
-            // Compara por campo lid
-            if (p.lid && p.lid.split('@')[0] === lidBase && p.id?.endsWith('@s.whatsapp.net')) {
-              return p.id.split('@')[0]
-            }
-            // Compara por id directamente
-            if (p.id && p.id.split('@')[0] === lidBase && p.id.endsWith('@s.whatsapp.net')) {
-              return p.id.split('@')[0]
-            }
-          }
-        } catch {}
-      }
-
-      // Caso 3: Chat privado → el chat mismo es el JID del usuario
-      if (m.chat?.endsWith('@s.whatsapp.net')) {
-        return m.chat.split('@')[0]
-      }
-
-      // Fallback final: extrae lo que haya antes del @
-      return sender.split('@')[0]
-    }
-
-    const rawPhone = await getSenderPhone()
+    const rawPhone = args[0].replace(/\D/g, '')
 
     if (!rawPhone || rawPhone.length < 7) {
       return client.reply(
         m.chat,
-        `✦ No se pudo detectar tu número automáticamente.\n\n✎ Usa: *.code [tu número]*\n> Ejemplo: .code 5219876543210`,
+`✦ Ese número no parece válido.
+
+✎ Uso: *${usedPrefix || '.'}code [tu número]*
+> Ejemplo: *${usedPrefix || '.'}code 5219876543210*`,
         m,
       )
     }
