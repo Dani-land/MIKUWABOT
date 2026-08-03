@@ -1,1 +1,0 @@
-- [Identidad LID de WhatsApp](whatsapp-lid-identity.md) — resolver LID mediante la tabla PN↔LID de Baileys antes de comparar propietarios, admins o sockets.
