@@ -1,4 +1,4 @@
-import { resolveLidToRealJid } from "../../lib/utils.js"
+import { resolveLidToRealJid, normalizeJid, sameJid } from "../../lib/utils.js"
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url'
@@ -12,14 +12,18 @@ const getBotsFromFolder = (folderName) => {
   return fs
     .readdirSync(basePath)
     .filter((dir) => fs.existsSync(path.join(basePath, dir, 'creds.json')))
-    .map((id) => id.replace(/\D/g, '') + '@s.whatsapp.net')
+    .map((id) => normalizeJid(id))
 }
 
 const getAllowedBots = (mainBotJid) => {
   const subs = getBotsFromFolder('Subs')
   const mods = getBotsFromFolder('Mods')
   const prems = getBotsFromFolder('Prems')
-  return [...new Set([...subs, ...mods, ...prems, mainBotJid])]
+  const connectedSockets = (global.conns || [])
+    .map((socket) => socket?.userId || socket?.user?.id)
+    .filter(Boolean)
+    .map(normalizeJid)
+  return [...new Set([...subs, ...mods, ...prems, connectedSockets, mainBotJid].flat().filter(Boolean))]
 }
 
 export default {
@@ -32,25 +36,27 @@ export default {
       const chat = global.db.data.chats[m.chat]
       const mentioned = m.mentionedJid
       const who2 = mentioned.length > 0 ? mentioned[0] : m.quoted?.sender || false
-     const who = await resolveLidToRealJid(who2, client, m.chat);
+      const who = normalizeJid(await resolveLidToRealJid(who2, client, m.chat));
       if (!who2) {
         return client.reply(m.chat, `《✧》 Por favor menciona un bot para convertirlo en primario.`, m)
       }
       const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch(() => {}) : ''
-      const groupParticipants = groupMetadata?.participants?.map((p) => p.id) || []
+       const groupParticipants = groupMetadata?.participants?.flatMap((p) => [p.id, p.lid])
+         .filter(Boolean)
+         .map(normalizeJid) || []
 
-      const mainBotJid = global.client.user.id.split(':')[0] + '@s.whatsapp.net'
+       const mainBotJid = normalizeJid(global.client?.user?.id)
       const allowedBots = getAllowedBots(mainBotJid)
 
-      if (!allowedBots.includes(who)) {
+       if (!allowedBots.some((botJid) => sameJid(botJid, who))) {
         return client.reply(m.chat, `《✧》 El usuario mencionado no es un socket MikuBot.`, m)
       }
 
-      if (!groupParticipants.includes(who)) {
+       if (!groupParticipants.some((participantJid) => sameJid(participantJid, who))) {
         return client.reply(m.chat, `《✧》 El bot mencionado no está presente en este grupo.`, m)
       }
 
-      if (chat.primaryBot === who) {
+       if (sameJid(chat.primaryBot, who)) {
         return client.reply(m.chat, `「✿」 @${who.split('@')[0]} ya es el Bot principal del Grupo.`, m, {
           mentions: [who],
         })

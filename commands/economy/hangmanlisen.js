@@ -1,3 +1,5 @@
+import { normalizeJid, sameJid } from '../../lib/utils.js'
+
 const words = [
   'estrella', 'ventana', 'puerta', 'computadora', 'televisor', 'desenlace', 'animacion', 'instruccion', 'contraseña', 'bicampeonato', 'melancolia', 'desconocido', 'interrogante', 'subterraneo', 'tratamiento', 'plan', 'hielo', 'helado', 'reencarnacion', 'resultado', 'caricatura', 'desintegrado', 'graduacion', 'rechazo', 'murmullo', 'escalofrio', 'condor',
   'universidad', 'biblioteca', 'montaña', 'teléfono', 'elefante', 'hipopotamo', 'murcielago', 'arquitectura', 'electricidad', 'fotografia', 'aguacate', 'contenedor', 'tenedor', 'paralelepipedo', 'circunferencia', 'inverosimil', 'yacimiento', 'jengibre', 'bumeran', 'metafisica', 'jugabilidad', 'olvidar', 'hentai', 'maltrato', 'alquimia', 'silueta', 'tridente',
@@ -88,7 +90,7 @@ export async function before(m, { client }) {
   if (!global.games) global.games = {};
 
   const games = global.games;
-  const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
+  const botId = normalizeJid(client.user.id)
 
   const chat = global.db.data.chats[m.chat];
 
@@ -96,7 +98,7 @@ export async function before(m, { client }) {
 
   const primaryBotId = chat?.primaryBot;
 
-  if (!primaryBotId || primaryBotId === botId) {
+  if (!primaryBotId || sameJid(primaryBotId, botId)) {
 
     if (
       !m.quoted ||

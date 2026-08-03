@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { normalizeJid, sameJid } from '../../lib/utils.js'
 
 global.math = global.math || {};
 
@@ -67,12 +68,11 @@ async function run({ client, m, args, command, prefa }) {
 
     const respuestaCorrecta = juego.respuesta;
 
-    const botId =
-      client.user.id.split(':')[0] + '@s.whatsapp.net';
+    const botId = normalizeJid(client.user.id)
 
     const primaryBotId = db.primaryBot;
 
-    if (!primaryBotId || primaryBotId === botId) {
+    if (!primaryBotId || sameJid(primaryBotId, botId)) {
 
       if (respuestaUsuario === respuestaCorrecta) {
 

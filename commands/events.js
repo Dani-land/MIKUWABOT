@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import {
     resolveLidToRealJid,
+    normalizeJid,
+    sameJid,
 } from '../lib/utils.js'
 
 const groupMetadataCache = new Map()
@@ -54,8 +56,9 @@ export const participantsUpdate = async (client, anu) => {
             subject: 'este grupo',
             participants: [],
         }
-        const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+        const botId = normalizeJid(client.user.id)
         const primaryBotId = chat?.primaryBot
+        const isPrimary = !primaryBotId || sameJid(primaryBotId, botId)
 
         // Baileys antiguo entrega strings; las versiones nuevas pueden
         // entregar objetos con id/lid/phoneNumber.
@@ -75,7 +78,7 @@ export const participantsUpdate = async (client, anu) => {
             const phone = mentionJid.split('@')[0]
             const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://files.catbox.moe/sxt0he.jpeg')
 
-            if (anu.action === 'add' && chat?.welcome && (!primaryBotId || primaryBotId === botId)) {
+            if (anu.action === 'add' && chat?.welcome && isPrimary) {
                 const caption = `✿ Bienvenido ✿
 
 ⌗» Usuario ›⠀@${phone}
@@ -89,7 +92,7 @@ export const participantsUpdate = async (client, anu) => {
                     mentions: [mentionJid],
                 })
             }
-            if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome && (!primaryBotId || primaryBotId === botId)) {
+            if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome && isPrimary) {
                 const caption = `❀ Hasta luego ❀
 
 ⌗» Usuario ›⠀@${phone}
@@ -103,7 +106,7 @@ export const participantsUpdate = async (client, anu) => {
                 })
             }
 
-            if (anu.action === 'promote' && chat?.alerts && (!primaryBotId || primaryBotId === botId)) {
+            if (anu.action === 'promote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
                     text: `✧ @${phone} ha sido promovido a *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,
@@ -111,7 +114,7 @@ export const participantsUpdate = async (client, anu) => {
                 })
             }
 
-            if (anu.action === 'demote' && chat?.alerts && (!primaryBotId || primaryBotId === botId)) {
+            if (anu.action === 'demote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
                     text: `✧ @${phone} ha sido degradado de *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,

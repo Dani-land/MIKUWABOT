@@ -1,4 +1,5 @@
 import * as Jimp from 'jimp';
+import { isSocketOwner } from '../../lib/utils.js'
 
 async function resizeImage(media) {
   const jimp = await Jimp.read(media);
@@ -22,12 +23,7 @@ export default {
     const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net';
     const config = global.db.data.settings[idBot];
 
-    const isOwner2 = [
-      idBot,
-      ...global.owner.map((number) => number + '@s.whatsapp.net')
-    ].includes(m.sender);
-
-    if (!isOwner2 && m.sender !== owner)
+    if (!isSocketOwner(client, m, config))
       return m.reply(mess.socket);
 
     const q = m.quoted || m;

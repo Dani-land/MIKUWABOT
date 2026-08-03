@@ -1,3 +1,5 @@
+import { normalizeJid, sameJid } from '../lib/utils.js'
+
 const linkRegex = /(https?:\/\/)?(chat\.whatsapp\.com\/[0-9A-Za-z]{20,24}|whatsapp\.com\/channel\/[0-9A-Za-z]{20,24})/i
 
 const allowedLinks = [
@@ -20,15 +22,15 @@ export async function before(m, { client }) {
   const participants = groupMetadata.participants || []
   const groupAdmins = participants
     .filter(p => p.admin)
-    .map(p => p.id)
+    .flatMap(p => [p.id, p.lid])
     .filter(Boolean)
-  const isAdmin = groupAdmins.includes(m.sender)
-  const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-  const isBotAdmin = groupAdmins.some(a => a === botId || a.split('@')[0] === botId.split('@')[0])
+  const isAdmin = groupAdmins.some(admin => sameJid(admin, m.sender))
+  const botId = normalizeJid(client.user.id)
+  const isBotAdmin = groupAdmins.some(admin => sameJid(admin, botId))
 
   const chat = globalThis?.db?.data?.chats?.[m.chat]
   const primaryBotId = chat?.primaryBot
-  const isPrimary = !primaryBotId || primaryBotId === botId
+  const isPrimary = !primaryBotId || sameJid(primaryBotId, botId)
 
   const isGroupLink = linkRegex.test(m.text)
   const hasAllowedLink = allowedLinks.some(link => m.text.includes(link))

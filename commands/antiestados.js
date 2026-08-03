@@ -1,7 +1,9 @@
+import { normalizeJid, sameJid } from '../lib/utils.js'
+
 export default async (client, m) => {
   if (!m.isGroup) return
 
-  const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+  const botId = normalizeJid(client.user.id)
   const chat = global.db.data.chats[m.chat]
 
   if (!chat?.antistatus) return
@@ -17,10 +19,13 @@ export default async (client, m) => {
   const groupMetadata = await client.groupMetadata(m.chat).catch(() => null)
   if (!groupMetadata) return
   const participants = groupMetadata.participants || []
-  const groupAdmins = participants.filter(p => p.admin).map(p => p.id)
+  const groupAdmins = participants
+    .filter(p => p.admin)
+    .flatMap(p => [p.id, p.lid])
+    .filter(Boolean)
 
-  const isBotAdmin = groupAdmins.includes(botId)
-  const isAdmin = groupAdmins.includes(m.sender)
+  const isBotAdmin = groupAdmins.some(admin => sameJid(admin, botId))
+  const isAdmin = groupAdmins.some(admin => sameJid(admin, m.sender))
   const isSelf = global.db.data.settings[botId]?.self ?? false
 
   if (isAdmin || !isBotAdmin || isSelf) return

@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import gradient from 'gradient-string'
 import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
-import { resolveLidToRealJid } from './lib/utils.js'
+import { resolveLidToRealJid, normalizeJid, sameJid } from './lib/utils.js'
 import antiStatus from './commands/antiestados.js'
 
 const groupMetaCache = new Map()
@@ -66,15 +66,15 @@ export default async (client, m) => {
         }
     }
 
-    if (m.sender && m.chat?.endsWith('@g.us')) {
+    if (m.sender) {
         const realSender = await cachedResolveLid(m.sender, client, m.chat)
         if (realSender) m.sender = realSender
     }
-    if (m.key?.participant && m.chat?.endsWith('@g.us')) {
+    if (m.key?.participant) {
         const realParticipant = await cachedResolveLid(m.key.participant, client, m.chat)
         if (realParticipant) m.key.participant = realParticipant
     }
-    if (Array.isArray(m.mentionedJid) && m.chat?.endsWith('@g.us')) {
+    if (Array.isArray(m.mentionedJid)) {
         m.mentionedJid = await Promise.all(
             m.mentionedJid.map(jid => cachedResolveLid(jid, client, m.chat))
         )
@@ -90,8 +90,10 @@ export default async (client, m) => {
     global.db.data.chats[chatId] = global.db.data.chats[chatId] || {}
     const chat = global.db.data.chats[chatId]
 
-    const selfId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-    const isOwner = global.owner.map(x => x + "@s.whatsapp.net").includes(m.sender)
+    const selfId = normalizeJid(client.user.id)
+    const ownerJids = (global.owner || []).map(normalizeJid).filter(Boolean)
+    const isOwner = ownerJids.some(ownerJid => sameJid(ownerJid, m.sender))
+    m.isOwner = isOwner
 
     const metadata = isGroup ? await getCachedGroupMeta(client, from) : null
     const groupName = metadata?.subject || ''
@@ -100,8 +102,9 @@ export default async (client, m) => {
     if (isGroup && chat.bannedGrupo) {
         const groupAdminsBanned = participants
             .filter(p => p.admin)
-            .map(p => p.id)
-        const isAdminBanned = groupAdminsBanned.includes(m.sender)
+            .flatMap(p => [p.id, p.lid])
+            .filter(Boolean)
+        const isAdminBanned = groupAdminsBanned.some(admin => sameJid(admin, m.sender))
         if (!isAdminBanned && !isOwner) return
     }
 
@@ -109,8 +112,8 @@ export default async (client, m) => {
     const primaryBot = chat.primaryBot
     const currentBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
 
-    if (primaryBot && currentBot !== primaryBot) {
-        const primaryUserId = primaryBot.split('@')[0]
+    if (primaryBot && !sameJid(currentBot, primaryBot)) {
+        const primaryUserId = normalizeJid(primaryBot).split('@')[0]
         const mainBotId = global.client?.user?.id?.split(':')[0]
         const isPrimaryMainBot = primaryUserId === mainBotId
 
@@ -213,7 +216,7 @@ export default async (client, m) => {
     }
 
     const settingsBot = global.db.data.settings[selfId] || {}
-    if (settingsBot.self && !isOwner && sender !== selfId) return
+    if (settingsBot.self && !isOwner && !sameJid(sender, selfId)) return
 
     if (m.chat && !m.chat.endsWith('@g.us')) {
         const allowedInPrivateForUsers = [
@@ -235,7 +238,7 @@ export default async (client, m) => {
     }
 
     // Elimina sufijo de dispositivo: "521234567890:1@s.whatsapp.net" → "521234567890@s.whatsapp.net"
-    const stripDevice = (jid) => jid ? jid.replace(/:\d+@/, '@') : jid
+    const stripDevice = (jid) => normalizeJid(jid)
 
     // El bot tiene dos identidades en WhatsApp moderno: número de teléfono y LID
     const botJidPhone = stripDevice(selfId)
@@ -249,8 +252,8 @@ export default async (client, m) => {
 
     // Helper: ¿este participante es el remitente?
     const isParticipantSender = (p, sJid) =>
-        stripDevice(p.id) === sJid ||
-        (p.lid && stripDevice(p.lid) === sJid)
+        sameJid(p.id, sJid) ||
+        (p.lid && sameJid(p.lid, sJid))
 
     // Construye lista de admins incluyendo AMBOS formatos (id y lid) de cada participante admin
     const groupAdmins = []
