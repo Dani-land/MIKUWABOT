@@ -102,7 +102,7 @@ export default {
       if (categoryArg && !categories[categoryArg]) {
         return m.reply(
           `✘ La categoría *${categoryArg}* no fue encontrada.\n\n` +
-          `✦ Categorías disponibles:\n` +
+          `ꕥ Categorías disponibles:\n` +
           `${Object.keys(categories).map(c => `• ${c}`).join('\n')}`
         )
       }
@@ -129,7 +129,7 @@ export default {
             })
             .join(' › ')
 
-          menu += `│ ✦ *${aliases}* ${cmd.uso ? `+ ${cmd.uso}` : ''}\n`
+          menu += `│ ꒰୨୧꒱ *${aliases}* ${cmd.uso ? `+ ${cmd.uso}` : ''}\n`
 
           if (cmd.desc) {
             menu += `│ ◦ _${cmd.desc}_\n`
