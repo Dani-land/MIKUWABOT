@@ -106,7 +106,7 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 ## ❤️ Créditos
 
 ### Desarrollador Principal
-[![Danielrxz](1001519181.png?size=150)](https://github.com/Dani-land)
+[![Danielrxz](https://files.catbox.moe/7l7fuo.jpg?size=150)](https://github.com/Dani-land)
 
 ### Agradecimientos Especiales
 [![Yuliethxz](1001515637.jpg?size=100)](https://github.com/DevYuliethxyz)
