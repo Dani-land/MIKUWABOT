@@ -20,7 +20,7 @@ Diseñado para ser rápido, estable y lleno de funciones útiles que harán tu d
 
 ## ✰ Características Principales
 
-- » Respuestas automáticas inteligentes
+- ⌗» Respuestas automáticas inteligentes
 - ⌗» Gestión avanzada de grupos
 - ⌗» Juegos interactivos y divertidos
 - ⌗» Descargadores (YouTube, TikTok, Instagram, etc.)
@@ -30,7 +30,7 @@ Diseñado para ser rápido, estable y lleno de funciones útiles que harán tu d
 
 ---
 
-## 🚀 Instalación Rápida
+## ⎘ Instalación Rápida
 
 **Summary:**
 <strong>📌 Requisitos e Instalación</strong>
@@ -55,7 +55,7 @@ npm start
 
 ---
 
-## ⚡ Mantener el Bot 24/7 (PM2)
+## ☕︎ Mantener el Bot 24/7 (PM2)
 
 **Summary:**
 <strong>💎 Comandos PM2</strong>
@@ -93,7 +93,7 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 
 ---
 
-## 🌐 Enlaces Útiles
+## ❀ Enlaces Útiles
 
 | Servicio       | Enlace |
 |----------------|--------|
@@ -103,7 +103,7 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 
 ---
 
-## ❤️ Créditos
+## ♡ Créditos ✿
 
 ### <font color="#FFD700">Desarrollador Principal</font>
 
@@ -150,5 +150,5 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 </p>
 ---
 
-**¡Gracias por usar Miku Wabot!** 💖  
+**¡Gracias por usar Miku Wabot!** ୭˚.  
 Si te gusta el proyecto, no olvides dejar una ⭐ en el repositorio.
