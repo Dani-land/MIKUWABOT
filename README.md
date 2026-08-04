@@ -6,7 +6,7 @@
 > **[¡Únete a mi canal de WhatsApp!](https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b)**
 
 <p align="center">
-  <img src="https://qu.ax/oAfvK" alt="Miku" width="220" height="auto">
+  <img src="https://files.catbox.moe/uqpcen.jpg" alt="Miku" width="220" height="auto">
 </p>
 
 ---
