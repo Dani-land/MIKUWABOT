@@ -11,22 +11,22 @@
 
 ---
 
-## ✨ Sobre Miku Wabot
+## ꒰୨୧꒱ Sobre Miku Wabot
 
 **Miku Wabot** es un bot de WhatsApp multifuncional y moderno construido con **Baileys**.  
 Diseñado para ser rápido, estable y lleno de funciones útiles que harán tu día a día en WhatsApp mucho más divertido y práctico.
 
 ---
 
-## 🔥 Características Principales
+## ✰ Características Principales
 
-- ✅ Respuestas automáticas inteligentes
-- ✅ Gestión avanzada de grupos
-- ✅ Juegos interactivos y divertidos
-- ✅ Descargadores (YouTube, TikTok, Instagram, etc.)
-- ✅ Integración con APIs externas
-- ✅ Sistema de comandos dinámico
-- ✅ Soporte multi-dispositivo
+- » Respuestas automáticas inteligentes
+- ⌗» Gestión avanzada de grupos
+- ⌗» Juegos interactivos y divertidos
+- ⌗» Descargadores (YouTube, TikTok, Instagram, etc.)
+- ⌗» Integración con APIs externas
+- ⌗» Sistema de comandos dinámico
+- ⌗» Soporte multi-dispositivo
 
 ---
 
