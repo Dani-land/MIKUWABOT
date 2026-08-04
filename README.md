@@ -44,8 +44,8 @@ pkg install -y git nodejs ffmpeg imagemagick yarn
 ```
 
 ```bash
-git clone https://github.com/Dani-land/MikuWabot-MD
-cd MikuWabot-MD
+git clone https://github.com/Dani-land/MIKUWABOT
+cd MIKUWABOT
 yarn install
 npm install
 npm start
@@ -65,7 +65,7 @@ Ejecuta estos comandos dentro de la carpeta del bot:
 ```bash
 termux-wake-lock
 npm install -g pm2
-pm2 start index.js --name MikuWabot
+pm2 start index.js --name MIKUWABOT
 pm2 save
 pm2 logs
 ```
@@ -73,22 +73,22 @@ pm2 logs
 ### Comandos útiles
 
 - **Ver logs**: `pm2 logs`
-- **Detener bot**: `pm2 stop MikuWabot`
-- **Reiniciar bot**: `pm2 restart MikuWabot`
-- **Eliminar bot**: `pm2 delete MikuWabot`
+- **Detener bot**: `pm2 stop MIKUWABOT`
+- **Reiniciar bot**: `pm2 restart MIKUWABOT`
+- **Eliminar bot**: `pm2 delete MIKUWABOT`
 
 ---
 
 ### Si el bot se detiene
 
 ```bash
-cd && cd MikuWabot-MD && npm start
+cd && cd MIKUWABOT && npm start
 ```
 
 ### Obtener nueva sesión (QR)
 
 ```bash
-cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
+cd && cd MIKUWABOT && rm -rf Sessions/Owner && npm start
 ```
 
 ---
