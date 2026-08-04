@@ -1,3 +1,5 @@
+const NYX_API_KEY = 'nyx_vDSYgjTlKOOLhz-_XmojwHjvH1_hp5c2'
+
 import fetch from 'node-fetch'
 
 const NYX_BASE = 'https://nyxdlapi.vercel.app'
@@ -9,7 +11,11 @@ function resolveMediaUrl(u) {
 }
 
 async function resolveInstagram(url) {
-  const res = await fetch(`${NYX_IG_URL}?url=${encodeURIComponent(url)}`)
+  const res = await fetch(`${NYX_IG_URL}?url=${encodeURIComponent(url)}&apikey=${NYX_API_KEY}`, {
+    headers: {
+      'x-api-key': NYX_API_KEY,
+    },
+  })
   const text = await res.text()
 
   if (!res.ok) {
