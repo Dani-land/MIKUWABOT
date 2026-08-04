@@ -5,6 +5,8 @@ const TRIGGERS = [
     audios: [
       'https://files.catbox.moe/h9at8f.mp3',
       'https://files.catbox.moe/npmv7w.mp3',
+
+'https://files.catbox.moe/l0cwuh.mp3',
     ],
   },
 ]
