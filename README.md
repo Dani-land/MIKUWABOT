@@ -106,10 +106,10 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 ## ❤️ Créditos
 
 ### Desarrollador Principal
-[![Danielrxz](https://tmpfiles.org/dl/wnwV9ZSOjrMu/file.jpg?size=150)](https://github.com/Dani-land)
+[![Danielrxz](1001519181.jpg?size=150)](https://github.com/Dani-land)
 
 ### Agradecimientos Especiales
-[![Yuliethxz](https://tmpfiles.org/dl/wewr97Suvugx/file.jpg?size=100)](https://github.com/DevYuliethxyz)
+[![Yuliethxz](1001515637.jpg?size=100)](https://github.com/DevYuliethxyz)
 
 ---
 
