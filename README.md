@@ -98,7 +98,7 @@ cd && cd MIKUWABOT && rm -rf Sessions/Owner && npm start
 | Servicio       | Enlace |
 |----------------|--------|
 | **Sitio Web**  | [Visitar Documentación](https://senko-bot-miku-bots-documentados-bo-eight.vercel.app) |
-| **API**        | [Senko API](https://senko-apiserverg5.onrender.com/) |
+| **API**        | [NyxDLaPI](https://nyxdlapi.vercel.app) |
 | **Canal WA**   | [Únete al Canal](https://whatsapp.com/channel/0029VbBUzJ6DzgT8o9NiMq2b) |
 
 ---
