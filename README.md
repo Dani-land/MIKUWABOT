@@ -107,6 +107,10 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 
 ### <font color="#FFD700">Desarrollador Principal</font>
 
+<h3 align="center">
+  <span style="color:#FFD700;">Danielrxz</span>
+</h3>
+
 <p align="center">
   <a href="https://github.com/Dani-land">
     <img src="https://files.catbox.moe/hqy2oq.jpg" width="150" alt="Danielrxz">
