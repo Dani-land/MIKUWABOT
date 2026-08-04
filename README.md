@@ -1,4 +1,3 @@
-
 > [!NOTE]
 > **Miku Wabot está en constante evolución.**  
 > Nos esforzamos cada día para ofrecerte la mejor experiencia posible.  
@@ -7,6 +6,16 @@
 
 <p align="center">
   <img src="https://files.catbox.moe/5vbgc7.jpg" alt="Miku" width="220" height="auto">
+</p>
+
+<p align="center">
+  <a href="https://git.io/typing-svg">
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=1000&color=FFD1E3&center=true&vCenter=true&width=440&lines=Hola%2C+soy+Miku+Wabot+%E2%99%A1;Bot+multifuncional+para+WhatsApp;Construido+con+Baileys;Siempre+aprendiendo+cosas+nuevas..." alt="Typing SVG" />
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://media.tenor.com/QRw72kk1MpMAAAAi/hatsune-miku-vocaloid.gif" width="180">
 </p>
 
 ---
@@ -27,6 +36,12 @@ Diseñado para ser rápido, estable y lleno de funciones útiles que harán tu d
 - ⌗» Integración con APIs externas
 - ⌗» Sistema de comandos dinámico
 - ⌗» Soporte multi-dispositivo
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Baileys-Multi--Device-25D366?style=for-the-badge&logo=whatsapp&logoColor=white">
+  <img src="https://img.shields.io/badge/Node.js-Powered-339933?style=for-the-badge&logo=node.js&logoColor=white">
+  <img src="https://img.shields.io/badge/Miku-Vocaloid-FFD1E3?style=for-the-badge&logo=hatsune-miku&logoColor=white">
+</p>
 
 ---
 
@@ -105,6 +120,10 @@ cd && cd MIKUWABOT && rm -rf Sessions/Owner && npm start
 
 ## ♡ Créditos ✿
 
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=18&duration=2500&pause=800&color=FFD1E3&center=true&vCenter=true&width=380&lines=Gracias+a+todo+el+equipo+%E2%99%A1" alt="Créditos" />
+</p>
+
 ### <font color="#FFD700">Desarrollador Principal</font>
 
 <h3 align="center">
@@ -148,7 +167,12 @@ cd && cd MIKUWABOT && rm -rf Sessions/Owner && npm start
 <p align="center">
   <font color="#FFD700">M4TEO FX</font>
 </p>
+
 ---
 
 **¡Gracias por usar Miku Wabot!** ୭˚.  
 Si te gusta el proyecto, no olvides dejar una ⭐ en el repositorio.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/footers/gray0_ctp_on_line.svg?sanitize=true" />
+</p>
