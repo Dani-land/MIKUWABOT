@@ -1,156 +1,160 @@
-import uploadImage from '../../lib/uploadImage.js'
 import fetch from 'node-fetch'
+import FormData from 'form-data'
+import { fileTypeFromBuffer } from 'file-type'
 
-function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B'
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`
+const NYX_API_KEY = 'nyx_NVRMcX8rP-YsEmGl-lyaLtks680B_ccH'
+const NYX_TOURL_URL = `https://nyxdlapi.vercel.app/api/tools/tourl?apikey=${NYX_API_KEY}`
+
+function normalizeBuffer(input) {
+  if (Buffer.isBuffer(input)) return input
+  if (input instanceof Uint8Array) return Buffer.from(input)
+  return null
 }
 
-const extByMime = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'video/mp4': 'mp4',
-  'audio/mpeg': 'mp3',
-  'audio/mp3': 'mp3',
-  'audio/wav': 'wav',
-  'audio/ogg': 'ogg',
-  'audio/opus': 'ogg',
+function isValidUrl(text) {
+  return typeof text === 'string' && /^https?:\/\//i.test(text.trim())
 }
 
-export default {
-  command: ['tourl'],
-  category: 'utils',
+async function uploadToNyx(buffer, mime, ext) {
+  const form = new FormData()
 
-  run: async ({ client, m, args, usedPrefix, command, text }) => {
+  form.append('file', buffer, {
+    filename: `file.${ext}`,
+    contentType: mime
+  })
+
+  const res = await fetch(NYX_TOURL_URL, {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  })
+
+  const text = await res.text()
+
+  if (!res.ok) {
+    throw new Error(`NyxDLaPI HTTP ${res.status}: ${text.slice(0, 200)}`)
+  }
+
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch {
+    throw new Error(`Respuesta inválida de NyxDLaPI: ${text.slice(0, 200)}`)
+  }
+
+  if (!json?.status) {
+    throw new Error(json?.message || 'La API no devolvió un resultado válido.')
+  }
+
+  const file = json?.result?.files?.[0]
+
+  if (!file?.url || !isValidUrl(file.url)) {
+    throw new Error('NyxDLaPI no devolvió una URL válida.')
+  }
+
+  return file.url
+}
+
+async function uploadToCatbox(buffer, mime, ext) {
+  const form = new FormData()
+
+  form.append('reqtype', 'fileupload')
+  form.append('fileToUpload', buffer, {
+    filename: `file.${ext}`,
+    contentType: mime
+  })
+
+  const res = await fetch('https://catbox.moe/user/api.php', {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  })
+
+  if (!res.ok) {
+    throw new Error(`Catbox HTTP ${res.status}`)
+  }
+
+  const text = (await res.text()).trim()
+  if (!isValidUrl(text)) {
+    throw new Error(`Respuesta inválida de Catbox: ${text}`)
+  }
+
+  return text
+}
+
+async function uploadTo0x0(buffer, mime, ext) {
+  const form = new FormData()
+
+  form.append('file', buffer, {
+    filename: `file.${ext}`,
+    contentType: mime
+  })
+
+  const res = await fetch('https://0x0.st', {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  })
+
+  if (!res.ok) {
+    throw new Error(`0x0.st HTTP ${res.status}`)
+  }
+
+  const text = (await res.text()).trim()
+  if (!isValidUrl(text)) {
+    throw new Error(`Respuesta inválida de 0x0.st: ${text}`)
+  }
+
+  return text
+}
+
+export default async function uploadImage(buffer) {
+  const input = normalizeBuffer(buffer)
+
+  if (!input) {
+    throw new Error('Buffer inválido')
+  }
+
+  let type = null
+  try {
+    type = await fileTypeFromBuffer(input)
+  } catch {
+    type = null
+  }
+
+  const mime = type?.mime || 'application/octet-stream'
+  const ext = type?.ext || 'bin'
+
+  const allowed = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'video/mp4',
+    'video/webm',
+    'audio/mpeg',
+    'audio/wav',
+    'audio/ogg'
+  ]
+
+  if (!allowed.includes(mime)) {
+    throw new Error(`Formato no soportado: ${mime}`)
+  }
+
+  try {
+    const url = await uploadToNyx(input, mime, ext)
+    return { url, api: 'NyxDLaPI' }
+  } catch (e0) {
     try {
-      const botId = ((client.user?.id || client.user?.jid || '').split(':')[0] || '') + '@s.whatsapp.net'
-      const botSettings = global.db?.data?.settings?.[botId] || {}
-      const botname = botSettings.namebot2 || 'Miku Wabot'
-
-      const prefix = usedPrefix || '.'
-      const q = m.quoted || m
-      const mime = q.mimetype || q.msg?.mimetype || ''
-
-      if (!mime) {
-        return client.reply(
-          m.chat,
-          `✐ Responde a una imagen, video o audio con *${prefix}tourl* para convertirlo en enlace.`,
-          m
-        )
-      }
-
-      const isMedia = /^(image\/(png|jpe?g|gif|webp)|video\/mp4|audio\/(mpeg|mp3|wav|ogg|opus))$/i.test(mime)
-
-      if (!isMedia) {
-        return client.reply(
-          m.chat,
-          '✘ Solo se permiten imágenes, videos y audios compatibles.',
-          m
-        )
-      }
-
-      await client.sendMessage(m.chat, {
-        react: { text: '🌐', key: m.key }
-      })
-
-      let media = null
-      if (typeof q.download === 'function') {
-        media = await q.download()
-      } else if (typeof client.downloadMediaMessage === 'function') {
-        media = await client.downloadMediaMessage(q)
-      }
-
-      if (!media) {
-        throw new Error('No se pudo descargar el archivo citado')
-      }
-
-      const ext = extByMime[mime.toLowerCase()] || 'bin'
-      const filename = `tourl_${Date.now()}.${ext}`
-
-      const link = await uploadImage(media, filename)
-
-      if (!link || !/^https?:\/\//i.test(link)) {
-        throw new Error('No se pudo generar el enlace')
-      }
-
-      let img = null
-
-      if (/^image\//i.test(mime)) {
-        img = media
-      }
-
-      let shortLink = 'No disponible'
+      const url = await uploadToCatbox(input, mime, ext)
+      return { url, api: 'Catbox' }
+    } catch (e1) {
       try {
-        const shortRes = await fetch(
-          `https://tinyurl.com/api-create.php?url=${encodeURIComponent(link)}`
-        )
-
-        if (shortRes.ok) {
-          shortLink = (await shortRes.text()).trim() || 'No disponible'
-        }
-      } catch (shortError) {
-        console.error('Error al acortar URL:', shortError)
+        const url = await uploadTo0x0(input, mime, ext)
+        return { url, api: '0x0.st' }
+      } catch (e2) {
+        throw new Error(`Falló upload | NyxDLaPI: ${e0.message} | Catbox: ${e1.message} | 0x0: ${e2.message}`)
       }
-
-      const txt = `
-╭─〔 🌐 Enlace Generado 〕─⬣
-│ ✦ Tipo › ${mime}
-│ ✦ Tamaño › ${formatBytes(media.length || 0)}
-│ ✦ Expira › Nunca
-│
-│ ✧ URL
-│ ${link}
-│
-│ ✧ URL Corta
-│ ${shortLink}
-╰────────────⬣
-
-✦ ${botname}
-`.trim()
-
-      if (img) {
-        await client.sendMessage(
-          m.chat,
-          {
-            image: img,
-            caption: txt
-          },
-          { quoted: m }
-        )
-      } else {
-        await client.sendMessage(
-          m.chat,
-          {
-            text: txt
-          },
-          { quoted: m }
-        )
-      }
-
-      await client.sendMessage(m.chat, {
-        react: { text: '✅', key: m.key }
-      })
-    } catch (e) {
-      console.error('Error en tourl:', e)
-
-      if (m?.chat) {
-        await client.sendMessage(m.chat, {
-          react: { text: '✘', key: m.key }
-        })
-
-        return client.reply(
-          m.chat,
-          `✘ Ocurrió un error al procesar el archivo.\n> ${e.message}`,
-          m
-        )
-      }
-
-      console.error(`✘ Ocurrió un error al procesar el archivo: ${e.message}`)
     }
   }
 }
