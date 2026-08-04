@@ -1,3 +1,5 @@
+import { resolveLidToRealJid, normalizeJid, sameJid } from '../../lib/utils.js'
+
 export default {
   command: ['kick'],
   category: 'grupo',
@@ -8,30 +10,64 @@ export default {
       return m.reply('✐ Etiqueta o cita el *mensaje* de la *persona* que quieres eliminar')
     }
 
-    let user = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted.sender
+    const requestedUser = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted.sender
 
     const groupInfo = await client.groupMetadata(m.chat)
-    const ownerGroup = groupInfo.owner || m.chat.split`-`[0] + '@s.whatsapp.net'
-    const ownerBot = global.owner[0][0] + '@s.whatsapp.net'
+    const participants = groupInfo.participants || []
 
-    const participant = groupInfo.participants.find(
-      (p) => p.id === user || p.lid === user || p.id?.split('@')[0] === user?.split('@')[0],
+    const participantMatches = (participant, jid) => {
+      const identities = [
+        participant?.id,
+        participant?.lid,
+        participant?.phoneNumber,
+      ].filter(Boolean)
+
+      return identities.some(identity => sameJid(identity, jid))
+    }
+
+    let participant = participants.find(
+      (candidate) => participantMatches(candidate, requestedUser)
+    )
+
+    // Si el mensaje trae un LID que no coincide directamente, resolverlo
+    // usando la tabla PN↔LID de Baileys y volver a buscar al participante.
+    const resolvedUser = normalizeJid(
+      await resolveLidToRealJid(requestedUser, client, m.chat)
     )
     if (!participant) {
-      return client.reply(m.chat, `《✧》 *@${user.split('@')[0]}* ya no está en el grupo.`, m, {
-        mentions: [user],
+      participant = participants.find(
+        (candidate) => participantMatches(candidate, resolvedUser)
+      )
+    }
+
+    if (!participant) {
+      return client.reply(m.chat, `《✧》 *@${requestedUser.split('@')[0]}* ya no está en el grupo.`, m, {
+        mentions: [requestedUser],
       })
     }
 
-    if (user === client.decodeJid(client.user.id)) {
+    // phoneNumber es el JID real cuando WhatsApp entrega id como @lid.
+    const user = normalizeJid(
+      await resolveLidToRealJid(
+        participant.phoneNumber || participant.id,
+        client,
+        m.chat
+      )
+    )
+    const ownerGroup = normalizeJid(
+      groupInfo.owner || m.chat.split`-`[0] + '@s.whatsapp.net'
+    )
+    const ownerBot = (global.owner || []).map(normalizeJid)
+
+    if (sameJid(user, client.user.id) || sameJid(user, client.user.lid)) {
       return m.reply('《✧》 No puedo eliminar al *bot* del grupo')
     }
 
-    if (user === ownerGroup) {
+    if (sameJid(user, ownerGroup)) {
       return m.reply('《✧》 No puedo eliminar al *propietario* del grupo')
     }
 
-    if (user === ownerBot) {
+    if (ownerBot.some(owner => sameJid(user, owner))) {
       return m.reply('《✧》 No puedo eliminar al *propietario* del bot')
     }
 
