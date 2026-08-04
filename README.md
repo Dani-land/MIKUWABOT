@@ -105,15 +105,45 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 
 ## ❤️ Créditos
 
-### Desarrollador Principal
-[![Danielrxz](https://files.catbox.moe/hqy2oq.jpg?size=150)](https://github.com/Dani-land)
+### <font color="#FFD700">Desarrollador Principal</font>
 
-### Agradecimientos Especiales
-[![Yuliethxz](https://files.catbox.moe/jbwtw9.jpg?size=100)](https://github.com/DevYuliethxyz)
+<p align="center">
+  <a href="https://github.com/Dani-land">
+    <img src="https://files.catbox.moe/hqy2oq.jpg" width="150" alt="Danielrxz">
+  </a>
+</p>
 
-[![Yosue](https://files.catbox.moe/7l7fuo.jpg?size=100)](https://github.com/yosue891)
+### <font color="#FFD700">Agradecimientos Especiales</font>
 
-[![M4TEO FX](https://files.catbox.moe/qe20s0.jpg?size=100)](https://github.com/M4TEO-FX)
+<p align="center">
+  <a href="https://github.com/DevYuliethxyz">
+    <img src="https://files.catbox.moe/jbwtw9.jpg" width="120" alt="Yuliethxz">
+  </a>
+</p>
+
+<p align="center">
+  <font color="#FFD700">Yuliethxz</font>
+</p>
+
+<p align="center">
+  <a href="https://github.com/yosue891">
+    <img src="https://files.catbox.moe/7l7fuo.jpg" width="120" alt="Yosue">
+  </a>
+</p>
+
+<p align="center">
+  <font color="#FFD700">Yosue</font>
+</p>
+
+<p align="center">
+  <a href="https://github.com/M4TEO-FX">
+    <img src="https://files.catbox.moe/qe20s0.jpg" width="120" alt="M4TEO FX">
+  </a>
+</p>
+
+<p align="center">
+  <font color="#FFD700">M4TEO FX</font>
+</p>
 ---
 
 **¡Gracias por usar Miku Wabot!** 💖  
