@@ -111,6 +111,9 @@ cd && cd MikuWabot-MD && rm -rf Sessions/Owner && npm start
 ### Agradecimientos Especiales
 [![Yuliethxz](https://files.catbox.moe/jbwtw9.jpg?size=100)](https://github.com/DevYuliethxyz)
 
+[![Yosue](https://files.catbox.moe/7l7fuo.jpg?size=100)](https://github.com/yosue891)
+
+[![M4TEO FX](https://files.catbox.moe/qe20s0.jpg?size=100)](https://github.com/M4TEO-FX)
 ---
 
 **¡Gracias por usar Miku Wabot!** 💖  
