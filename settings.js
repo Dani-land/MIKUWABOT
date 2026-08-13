@@ -12,7 +12,6 @@ global.api = {
   key: 'Daniel_rxz'
 }
 
-
 global.bot = {
   api: 'https://nyxdlapi.vercel.app',
   web: 'https://github.com/Dani-land/MIKUWABOT.git'
