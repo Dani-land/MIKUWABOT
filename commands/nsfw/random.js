@@ -30,7 +30,7 @@ export default {
         imageUrl = data.data.url;
 
       } else {
-        const url = `https://raw.githubusercontent.com/David-Chian/Megumin-Bot-MD/main/lib/json/${command}.json`;
+        const url = `https://raw.githubusercontent.com/Dani-land/MIKUWABOT/main/lib/json/${command}.json`;
         const { data } = await axios.get(url);
 
         if (!Array.isArray(data) || data.length === 0) {
