@@ -8,8 +8,10 @@ global.pairing_code = true
 global.number_bot = ''
 
 global.api = {
-  url: 'https://nyxdlapi.vercel.app'
+  url: 'https://api.stellarwa.xyz',
+  key: 'Daniel_rxz'
 }
+
 
 global.bot = {
   api: 'https://nyxdlapi.vercel.app',
