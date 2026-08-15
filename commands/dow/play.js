@@ -1,8 +1,6 @@
 import yts from 'yt-search'
 import fetch from 'node-fetch'
 import sharp from 'sharp'
-import axios from 'axios'
-import crypto from 'crypto'
 
 const limit = 300
 
@@ -11,66 +9,7 @@ const BROWSER_HEADERS = {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
 }
 
-class SaveTube {
-  constructor() {
-    this.ky = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
-
-    this.m =
-      /^((?:https?:)?\/\/)?((?:www|m|music)\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?([a-zA-Z0-9_-]{11})/
-
-    this.headers = {
-      'content-type': 'application/json',
-      origin: 'https://yt.savetube.me',
-      referer: 'https://yt.savetube.me/',
-      'user-agent': BROWSER_HEADERS['user-agent'],
-    }
-
-    this.is = axios.create({ headers: this.headers })
-  }
-
-  async decrypt(enc) {
-    const sr = Buffer.from(enc, 'base64')
-    const ky = Buffer.from(this.ky, 'hex')
-    const iv = sr.slice(0, 16)
-    const dt = sr.slice(16)
-    const dc = crypto.createDecipheriv('aes-128-cbc', ky, iv)
-    return JSON.parse(Buffer.concat([dc.update(dt), dc.final()]).toString())
-  }
-
-  async getCdn() {
-    const r = await this.is.get('https://media.savetube.vip/api/random-cdn')
-    return r.data.cdn
-  }
-
-  async download(url, isAudio) {
-    const id = url.match(this.m)?.[3]
-    if (!id) throw new Error('ID inválido')
-
-    const cdn = await this.getCdn()
-
-    const info = await this.is.post(`https://${cdn}/v2/info`, {
-      url: `https://www.youtube.com/watch?v=${id}`,
-    })
-
-    const dec = await this.decrypt(info.data.data)
-
-    const dl = await this.is.post(`https://${cdn}/download`, {
-      id,
-      downloadType: isAudio ? 'audio' : 'video',
-      quality: isAudio ? '128' : '720',
-      key: dec.key,
-    })
-
-    return {
-      dl: dl.data.data.downloadUrl,
-      title: dec.title,
-      headers: this.headers,
-    }
-  }
-}
-
-const LEMPI_API_URL = 'https://api.lempi.lat/dl/ytv?url='
-const LEMPI_API_KEY = 'lem715'
+const GOHAN_API_BASE = 'https://api-gohan-v1.onrender.com'
 
 const isYTUrl = (url) =>
   /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/)|youtu\.be\/).+$/i.test(url)
@@ -135,68 +74,60 @@ async function sendPlayableVideo(client, m, dl, title, thumbBuffer, extraHeaders
   )
 }
 
-async function resolveAudioDownload(url) {
-  const sv = new SaveTube()
-  return sv.download(url, true)
+async function requestGohan(endpoint, url) {
+  const apiUrl = `${GOHAN_API_BASE}${endpoint}?url=${encodeURIComponent(url)}`
+
+  const res = await fetch(apiUrl, {
+    headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] },
+  })
+
+  const text = await res.text()
+
+  if (!res.ok) {
+    throw new Error(`API Gohan HTTP ${res.status}: ${text.slice(0, 200)}`)
+  }
+
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`Respuesta inválida de Gohan: ${text.slice(0, 200)}`)
+  }
+
+  if (!data?.status || !data?.result?.download_url) {
+    throw new Error(data?.message || 'La API no devolvió un resultado válido.')
+  }
+
+  return data.result
+}
+
+export async function resolveAudioDownload(url, title) {
+  const result = await requestGohan('/download/ytaudio', url)
+
+  return {
+    dl: result.download_url,
+    title: result.title || title,
+    quality: null,
+    sizeText: null,
+    headers: BROWSER_HEADERS,
+  }
 }
 
 async function resolveVideoDownload(url, title) {
-  const qualities = [null, '720', '480', '360']
-  let lastError
+  const result = await requestGohan('/download/ytvideo', url)
 
-  for (const quality of qualities) {
-    try {
-      const qParam = quality ? `&quality=${quality}` : ''
-      const res = await fetch(
-        `${LEMPI_API_URL}${encodeURIComponent(url)}${qParam}&apikey=${LEMPI_API_KEY}`,
-        { headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] } }
-      )
-
-      const text = await res.text()
-
-      if (!res.ok) {
-        lastError = new Error(`API Lempi HTTP ${res.status}: ${text.slice(0, 200)}`)
-        continue
-      }
-
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch {
-        lastError = new Error(`Respuesta inválida de Lempi: ${text.slice(0, 200)}`)
-        continue
-      }
-
-      if (!data?.status) {
-        lastError = new Error(data?.mensaje || data?.message || 'La API no devolvió un resultado válido.')
-        continue
-      }
-
-      // Lempi ha usado distintos nombres de campo con el tiempo (datos vs descarga)
-      const info = data.datos || data.descarga
-      if (!info?.url) {
-        lastError = new Error('La API no devolvió un link de descarga.')
-        continue
-      }
-
-      return {
-        dl: info.url,
-        title: data.titulo || title,
-        quality: info.calidad || quality || null,
-        sizeText: info.tamaño || null,
-        headers: BROWSER_HEADERS,
-      }
-    } catch (e) {
-      lastError = e
-    }
+  return {
+    dl: result.download_url,
+    title: result.title || title,
+    quality: result.quality || null,
+    sizeText: null,
+    headers: BROWSER_HEADERS,
   }
-
-  throw lastError || new Error('No se pudo descargar el video en ninguna calidad.')
 }
 
 async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocument }) {
   const result = isAudio
-    ? await resolveAudioDownload(url)
+    ? await resolveAudioDownload(url, title)
     : await resolveVideoDownload(url, title)
 
   const { dl, title: apiTitle, headers: dlHeaders } = result
