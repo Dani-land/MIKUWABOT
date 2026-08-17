@@ -58,7 +58,7 @@ export default {
       `𖹭  ׄ  ְ ❖ *Mensaje*\n> ${texto}\n\n` +
       dev
 
-        const owner = '5351524614@s.whatsapp.net'
+        const owner = '12602764655@s.whatsapp.net'
 
 await global.client.sendContextInfoIndex(
   owner,
