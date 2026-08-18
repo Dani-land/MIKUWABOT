@@ -3,34 +3,32 @@ import { v4 as uuidv4 } from 'uuid';
 import fetch from 'node-fetch';
 
 const obtenerImagen = async (keyword) => {
-  const urls = [
-    `https://api.stellarwa.xyz/home#nsfw/nsfw-danbooru?keyword=${encodeURIComponent(keyword)}`,
-    `https://api.stellarwa.xyz/home#nsfw/nsfw-gelbooru?keyword=${encodeURIComponent(keyword)}`
-  ];
+  // Safebooru: imageboard con contenido clasificado como seguro (rating=safe)
+  const tag = encodeURIComponent(String(keyword).trim().replace(/\s+/g, '_'));
+  const url = `https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`;
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      const contentType = res.headers.get('content-type');
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'NyxDLaPI/1.0' },
+    });
 
-      if (contentType && contentType.includes('image')) {
-        return url; 
-      }
-      const data = await res.json();
-      const extensionesImagen = /\.(jpg|jpeg|png)$/i;
-      const imagenesValidas = data?.results?.filter(
-        (item) => typeof item === 'string' && extensionesImagen.test(item)
-      );
-
-      if (imagenesValidas?.length) {
-        return imagenesValidas[Math.floor(Math.random() * imagenesValidas.length)];
-      }
-    } catch (err) {
-      console.error(`[Error] Fallo en URL: ${url}`, err);
-      continue;
+    if (!res.ok) {
+      console.error(`[Error] Safebooru devolvió status ${res.status}`);
+      return null;
     }
+
+    const data = await res.json().catch(() => null);
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    const posts = data.filter((p) => p?.image && p?.directory);
+    if (!posts.length) return null;
+
+    const elegido = posts[Math.floor(Math.random() * posts.length)];
+    return `https://safebooru.org//images/${elegido.directory}/${elegido.image}`;
+  } catch (err) {
+    console.error(`[Error] Fallo al obtener imagen de Safebooru:`, err);
+    return null;
   }
-  return null;
 };
 
 const obtenerPersonajes = () => {
@@ -65,7 +63,7 @@ export default {
     const db = global.db.data;
     const chatId = m.chat;
     const userId = m.sender;
-    
+
     if (!db.chats[chatId]) db.chats[chatId] = {};
     const chat = db.chats[chatId];
     if (!chat.users) chat.users = {};
@@ -84,6 +82,8 @@ export default {
     }
 
     const personajes = obtenerPersonajes();
+    if (!personajes.length) return m.reply('《✧》 No hay personajes cargados en characters.json.');
+
     const personaje = personajes[Math.floor(Math.random() * personajes.length)];
     if (!personaje) return m.reply('《✧》 No se encontró ningún personaje disponible.');
 
@@ -103,10 +103,16 @@ export default {
         estado = `Reservado por ${db.users[reservado.userId]?.name || 'Alguien'}`;
       }
 
-      const imagenUrl = await obtenerImagen(personaje.keyword || personaje.name);
-      
+      // Intenta con el keyword/nombre del personaje; si no hay resultados,
+      // reintenta solo con la primera palabra del nombre (más flexible)
+      let imagenUrl = await obtenerImagen(personaje.keyword || personaje.name);
+      if (!imagenUrl && personaje.name) {
+        const primeraPalabra = personaje.name.split(' ')[0];
+        imagenUrl = await obtenerImagen(primeraPalabra);
+      }
+
       if (!imagenUrl) {
-          return m.reply('No se pudo obtener una imagen para este personaje.');
+        return m.reply(`No se pudo obtener una imagen para *${personaje.name || 'este personaje'}*. Intenta de nuevo.`);
       }
 
       const mensaje = `✰ Nombre › *${personaje.name || 'Desconocido'}*
