@@ -3,239 +3,341 @@ import fetch from 'node-fetch'
 import sharp from 'sharp'
 
 const limit = 300
+const NYXDL_API_KEY = 'nyx_NVRMcX8rP-YsEmGl-lyaLtks680B_ccH'
+const NYXDL_BASE = 'https://nyxdlapi.vercel.app'
+const NYXDL_AUDIO = 'https://nyxdlapi.vercel.app/api/downloads/youtube'
+const NYXDL_VIDEO = 'https://nyxdlapi.vercel.app/api/downloads/youtube/mp4'
 
-const BROWSER_HEADERS = {
+const NEWSLETTER_JID = '120363420575743790@newsletter'
+const NEWSLETTER_NAME = 'Hatsune Miku / Wa'
+
+const HEADERS = {
   'user-agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
 }
 
-const GOHAN_API_BASE = 'https://api-gohan-v1.onrender.com'
-
-const isYTUrl = (url) =>
-  /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/)|youtu\.be\/).+$/i.test(url)
-
-async function getBufferFromUrl(url, extraHeaders = {}) {
-  const res = await fetch(url, {
-    redirect: 'follow',
-    headers: { ...BROWSER_HEADERS, ...extraHeaders },
-  })
-
-  if (!res.ok) {
-    throw new Error(`No se pudo descargar el archivo (${res.status})`)
-  }
-
-  const contentType = res.headers.get('content-type') || ''
-  if (contentType.includes('text/html') || contentType.includes('application/json')) {
-    throw new Error(`El servidor devolvió contenido inválido (${contentType})`)
-  }
-
-  const arrayBuffer = await res.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-
-  if (buffer.length < 10000) {
-    throw new Error('Archivo descargado demasiado pequeño, probablemente inválido')
-  }
-
-  return buffer
+function isYTUrl(u) {
+  return /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/)|youtu\.be\/)/i.test(u || '')
 }
 
-async function sendPlayableVideo(client, m, dl, title, thumbBuffer, extraHeaders) {
-  const fileName = `${title}.mp4`
+function abs(u) {
+  if (!u || typeof u !== 'string') return null
+  var s = u.trim()
+  if (!s) return null
+  if (/^https?:\/\//i.test(s)) return s
+  if (s.indexOf('//') === 0) return 'https:' + s
+  if (s.charAt(0) === '/') return NYXDL_BASE + s
+  return null
+}
 
+function newsletterContext() {
+  return {
+    forwardingScore: 999,
+    isForwarded: true,
+    forwardedNewsletterMessageInfo: {
+      newsletterJid: NEWSLETTER_JID,
+      newsletterName: NEWSLETTER_NAME,
+      serverMessageId: -1,
+    },
+  }
+}
+
+function extractVideoId(url) {
   try {
-    const buffer = await getBufferFromUrl(dl, extraHeaders)
-
-    await client.sendMessage(
-      m.chat,
-      {
-        video: buffer,
-        mimetype: 'video/mp4',
-        fileName,
-        ptv: false,
-        jpegThumbnail: thumbBuffer || undefined,
-      },
-      { quoted: m }
-    )
-    return
+    var full = url.indexOf('http') === 0 ? url : 'https://' + url
+    var u = new URL(full)
+    if (u.hostname.indexOf('youtu.be') !== -1) {
+      return u.pathname.replace('/', '').split('/')[0]
+    }
+    return u.searchParams.get('v') || null
   } catch (e) {
-    console.log('Video buffer falló, usando URL directa:', e.message)
+    return null
+  }
+}
+
+async function callNyxDL(endpoint, ytUrl) {
+  var clean = abs(ytUrl)
+  if (!clean) {
+    if (ytUrl && String(ytUrl).indexOf('http') === 0) clean = String(ytUrl).trim()
+    else if (ytUrl) clean = 'https://' + String(ytUrl).trim()
+  }
+  if (!clean || !/^https?:\/\//i.test(clean)) {
+    throw new Error('URL de YouTube inválida: ' + ytUrl)
   }
 
-  await client.sendMessage(
-    m.chat,
-    {
-      video: { url: dl },
-      mimetype: 'video/mp4',
-      fileName,
-      ptv: false,
-      jpegThumbnail: thumbBuffer || undefined,
-    },
-    { quoted: m }
+  var apiUrl =
+    endpoint +
+    '?url=' +
+    encodeURIComponent(clean) +
+    '&apikey=' +
+    encodeURIComponent(NYXDL_API_KEY)
+
+  console.log('[NyxDL] GET', apiUrl)
+
+  var lastErr = null
+  var attempts = 2
+
+  for (var i = 1; i <= attempts; i++) {
+    try {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+      var timer = null
+      if (controller) {
+        timer = setTimeout(function () {
+          controller.abort()
+        }, 90000)
+      }
+
+      var res = await fetch(apiUrl, {
+        headers: { accept: 'application/json', 'user-agent': HEADERS['user-agent'] },
+        timeout: 90000,
+        signal: controller ? controller.signal : undefined,
+      })
+
+      if (timer) clearTimeout(timer)
+
+      var text = await res.text()
+
+      if (!res.ok) {
+        throw new Error('NyxDL HTTP ' + res.status + ': ' + text.slice(0, 180))
+      }
+
+      var data
+      try {
+        data = JSON.parse(text)
+      } catch (e) {
+        throw new Error('NyxDL no devolvió JSON: ' + text.slice(0, 180))
+      }
+
+      var r = data && data.result ? data.result : {}
+      var dl =
+        abs(r.download_url) ||
+        abs(r.download) ||
+        abs(r.url) ||
+        abs(r.datos && r.datos.url) ||
+        abs(r.datos && r.datos.download)
+
+      if (!data || !data.status || !dl) {
+        throw new Error((data && data.message) || 'NyxDL no devolvió link de descarga.')
+      }
+
+      return {
+        dl: dl,
+        title: r.title || r.titulo || 'Sin título',
+        duration: r.duration || r.duracion || null,
+        channel: r.channel || r.canal || null,
+        quality: r.quality || (r.datos && r.datos.calidad) || null,
+        size: r.size || (r.datos && r.datos['tamaño']) || null,
+        thumbnail: abs(r.thumbnail) || null,
+      }
+    } catch (e) {
+      lastErr = e
+      var msg = (e && e.message) || String(e)
+      console.log('[NyxDL] intento ' + i + '/' + attempts + ' falló:', msg)
+
+      if (i < attempts && /ETIMEDOUT|timeout|aborted|ECONNRESET|ENOTFOUND|network/i.test(msg)) {
+        await new Promise(function (r) {
+          setTimeout(r, 2000)
+        })
+        continue
+      }
+      break
+    }
+  }
+
+  throw new Error(
+    'No se pudo conectar con la API (timeout). Prueba de nuevo en unos segundos.\nDetalle: ' +
+      ((lastErr && lastErr.message) || 'ETIMEDOUT')
   )
 }
 
-async function requestGohan(endpoint, url) {
-  const apiUrl = `${GOHAN_API_BASE}${endpoint}?url=${encodeURIComponent(url)}`
+async function sendResult(opts) {
+  var client = opts.client
+  var m = opts.m
+  var url = opts.url
+  var title = opts.title
+  var videoInfo = opts.videoInfo
+  var isAudio = opts.isAudio
+  var asDocument = opts.asDocument
 
-  const res = await fetch(apiUrl, {
-    headers: { accept: 'application/json', 'user-agent': BROWSER_HEADERS['user-agent'] },
-  })
+  var result = isAudio
+    ? await callNyxDL(NYXDL_AUDIO, url)
+    : await callNyxDL(NYXDL_VIDEO, url)
 
-  const text = await res.text()
+  var finalTitle = result.title || title || 'archivo'
+  var dl = abs(result.dl)
+  if (!dl) throw new Error('Link de descarga vacío o inválido')
 
-  if (!res.ok) {
-    throw new Error(`API Gohan HTTP ${res.status}: ${text.slice(0, 200)}`)
-  }
+  console.log('[NyxDL] download =', dl)
 
-  let data
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`Respuesta inválida de Gohan: ${text.slice(0, 200)}`)
-  }
-
-  if (!data?.status || !data?.result?.download_url) {
-    throw new Error(data?.message || 'La API no devolvió un resultado válido.')
-  }
-
-  return data.result
-}
-
-export async function resolveAudioDownload(url, title) {
-  const result = await requestGohan('/download/ytaudio', url)
-
-  return {
-    dl: result.download_url,
-    title: result.title || title,
-    quality: null,
-    sizeText: null,
-    headers: BROWSER_HEADERS,
-  }
-}
-
-async function resolveVideoDownload(url, title) {
-  const result = await requestGohan('/download/ytvideo', url)
-
-  return {
-    dl: result.download_url,
-    title: result.title || title,
-    quality: result.quality || null,
-    sizeText: null,
-    headers: BROWSER_HEADERS,
-  }
-}
-
-async function sendResult({ client, m, url, title, videoInfo, isAudio, asDocument }) {
-  const result = isAudio
-    ? await resolveAudioDownload(url, title)
-    : await resolveVideoDownload(url, title)
-
-  const { dl, title: apiTitle, headers: dlHeaders } = result
-  const finalTitle = apiTitle || title
-
-  // ── Ficha bonita con portada + descripción, antes de mandar el archivo ──────
-  let thumbBuffer = null
-  if (videoInfo?.thumbnail) {
+  var thumbBuffer = null
+  var thumbSrc = result.thumbnail || abs(videoInfo && videoInfo.thumbnail)
+  if (thumbSrc) {
     try {
-      const response = await fetch(videoInfo.thumbnail)
-      const arrayBuffer = await response.arrayBuffer()
-      thumbBuffer = await sharp(Buffer.from(arrayBuffer)).resize(500, 281).jpeg({ quality: 85 }).toBuffer()
-    } catch {}
+      var tr = await fetch(thumbSrc, { headers: HEADERS })
+      if (tr.ok) {
+        var buf = Buffer.from(await tr.arrayBuffer())
+        thumbBuffer = await sharp(buf).resize(500, 281).jpeg({ quality: 85 }).toBuffer()
+      }
+    } catch (e) {
+      console.log('thumb fail:', e.message)
+    }
   }
 
-  const infoLines = [`✿ *${finalTitle}*`, '']
-  if (videoInfo?.duration) infoLines.push(`⌗» Duración › ${videoInfo.duration}`)
-  if (videoInfo?.views !== undefined) infoLines.push(`⌗» Vistas › ${videoInfo.views?.toLocaleString() || 0}`)
-  if (videoInfo?.author?.name) infoLines.push(`⌗» Canal › ${videoInfo.author.name}`)
-  if (videoInfo?.ago) infoLines.push(`⌗» Publicado › ${videoInfo.ago}`)
-  if (result.quality) infoLines.push(`⌗» Calidad › ${result.quality}`)
-  if (result.sizeText) infoLines.push(`⌗» Tamaño › ${result.sizeText}`)
-  infoLines.push('', isAudio ? '✐ Enviando audio...' : '✐ Enviando video...')
+  var lines = ['✿ *' + finalTitle + '*', '']
+  if (result.duration || (videoInfo && (videoInfo.timestamp || videoInfo.duration))) {
+    lines.push(
+      '⌗» Duración › ' + (result.duration || videoInfo.timestamp || videoInfo.duration)
+    )
+  }
+  if (videoInfo && videoInfo.views != null) {
+    lines.push('⌗» Vistas › ' + Number(videoInfo.views).toLocaleString())
+  }
+  if (result.channel || (videoInfo && videoInfo.author && videoInfo.author.name)) {
+    lines.push('⌗» Canal › ' + (result.channel || videoInfo.author.name))
+  }
+  if (videoInfo && videoInfo.ago) lines.push('⌗» Publicado › ' + videoInfo.ago)
+  if (result.quality) lines.push('⌗» Calidad › ' + result.quality)
+  if (result.size) lines.push('⌗» Tamaño › ' + result.size)
+  lines.push('')
+  lines.push(isAudio ? '✐ Enviando audio...' : '✐ Enviando video...')
 
-  const infoText = infoLines.join('\n')
+  var infoText = lines.join('\n')
+  var ctx = newsletterContext()
 
   if (thumbBuffer) {
-    await client.sendMessage(m.chat, { image: thumbBuffer, caption: infoText }, { quoted: m })
+    await client.sendMessage(
+      m.chat,
+      { image: thumbBuffer, caption: infoText, contextInfo: ctx },
+      { quoted: m }
+    )
   } else {
-    await client.sendMessage(m.chat, { text: infoText }, { quoted: m })
+    await client.sendMessage(
+      m.chat,
+      { text: infoText, contextInfo: ctx },
+      { quoted: m }
+    )
   }
 
-  // ── Envío del archivo ─────────────────────────────────────────────────────
   if (isAudio) {
+    var audioMsg = {
+      mimetype: 'audio/mpeg',
+      fileName: finalTitle + '.mp3',
+      contextInfo: ctx,
+    }
+    if (asDocument) audioMsg.document = { url: dl }
+    else audioMsg.audio = { url: dl }
+
+    await client.sendMessage(m.chat, audioMsg, { quoted: m })
+    return
+  }
+
+  var asDoc = asDocument
+  if (!asDoc) {
+    try {
+      var head = await fetch(dl, { method: 'HEAD', headers: HEADERS })
+      var len = head.headers.get('content-length')
+      var mb = len ? parseInt(len, 10) / (1024 * 1024) : 0
+      if (mb >= limit) asDoc = true
+    } catch (e) {
+      asDoc = true
+    }
+  }
+
+  if (asDoc) {
     await client.sendMessage(
       m.chat,
       {
-        [asDocument ? 'document' : 'audio']: { url: dl },
-        mimetype: 'audio/mpeg',
-        fileName: `${finalTitle}.mp3`,
+        document: { url: dl },
+        fileName: finalTitle + '.mp4',
+        mimetype: 'video/mp4',
+        contextInfo: ctx,
       },
       { quoted: m }
     )
     return
   }
 
-  if (asDocument) {
-    await client.sendMessage(
-      m.chat,
-      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4' },
-      { quoted: m }
-    )
-    return
-  }
-
-  let exceedsLimit = false
   try {
-    const head = await fetch(dl, { method: 'HEAD', headers: BROWSER_HEADERS })
-    const contentLength = head.headers.get('content-length')
-    const fileSize = contentLength ? parseInt(contentLength) / (1024 * 1024) : 0
-    exceedsLimit = fileSize >= limit
-  } catch {
-    exceedsLimit = true
-  }
+    var vres = await fetch(dl, { headers: HEADERS, redirect: 'follow' })
+    if (!vres.ok) throw new Error('HTTP ' + vres.status)
+    var vbuf = Buffer.from(await vres.arrayBuffer())
+    if (vbuf.length < 10000) throw new Error('archivo muy pequeño')
 
-  if (exceedsLimit) {
     await client.sendMessage(
       m.chat,
-      { document: { url: dl }, fileName: `${finalTitle}.mp4`, mimetype: 'video/mp4' },
+      {
+        video: vbuf,
+        mimetype: 'video/mp4',
+        fileName: finalTitle + '.mp4',
+        ptv: false,
+        jpegThumbnail: thumbBuffer || undefined,
+        contextInfo: ctx,
+      },
       { quoted: m }
     )
-  } else {
-    await sendPlayableVideo(client, m, dl, finalTitle, thumbBuffer, dlHeaders)
+  } catch (e) {
+    console.log('video buffer fail, URL directa:', e.message)
+    await client.sendMessage(
+      m.chat,
+      {
+        video: { url: dl },
+        mimetype: 'video/mp4',
+        fileName: finalTitle + '.mp4',
+        ptv: false,
+        jpegThumbnail: thumbBuffer || undefined,
+        contextInfo: ctx,
+      },
+      { quoted: m }
+    )
   }
 }
 
 export default {
   command: [
-    'play', 'mp3', 'playaudio', 'playdoc', 'ytmp3', 'play2',
-    'mp4', 'mp4doc', 'playvideo', 'ytmp4',
+    'play',
+    'mp3',
+    'playaudio',
+    'playdoc',
+    'ytmp3',
+    'play2',
+    'mp4',
+    'mp4doc',
+    'playvideo',
+    'ytmp4',
   ],
-
   category: 'downloader',
 
-  run: async ({ client, m, args, command, text }) => {
+  run: async function (ctx) {
+    var client = ctx.client
+    var m = ctx.m
+    var command = ctx.command
+    var text = ctx.text
+
     try {
-      if (!text.trim()) {
+      if (!text || !String(text).trim()) {
         return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
       }
 
-      const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3', 'playdoc'].includes(command)
-      const asDocument = ['playdoc', 'mp4doc'].includes(command)
+      var isAudio = ['play', 'mp3', 'playaudio', 'ytmp3', 'playdoc', 'play2'].indexOf(command) !== -1
+      var asDocument = ['playdoc', 'mp4doc'].indexOf(command) !== -1
 
-      let url, title, videoInfo
+      var url
+      var title
+      var videoInfo
 
       if (isYTUrl(text)) {
-        url = text
+        url = String(text).trim()
+        if (url.indexOf('http') !== 0) url = 'https://' + url
+        var id = extractVideoId(url)
         try {
-          videoInfo = await yts({
-            videoId: new URL(url).searchParams.get('v') || url.split('/').pop(),
-          })
-          title = videoInfo?.title || 'Video'
-        } catch {
+          videoInfo = id ? await yts({ videoId: id }) : null
+          title = (videoInfo && videoInfo.title) || 'Video'
+        } catch (e) {
           title = 'Video'
         }
       } else {
-        const search = await yts(text)
-        if (!search.all.length) {
+        var search = await yts(String(text).trim())
+        if (!search || !search.all || !search.all.length) {
           return m.reply('ꕥ No encontré resultados.')
         }
         videoInfo = search.all[0]
@@ -243,10 +345,23 @@ export default {
         url = videoInfo.url
       }
 
-      await sendResult({ client, m, url, title, videoInfo, isAudio, asDocument })
+      url = abs(url) || url
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return m.reply('✘ No pude obtener una URL válida de YouTube.')
+      }
+
+      await sendResult({
+        client: client,
+        m: m,
+        url: url,
+        title: title,
+        videoInfo: videoInfo,
+        isAudio: isAudio,
+        asDocument: asDocument,
+      })
     } catch (e) {
-      console.log(e)
-      m.reply(`✘ Error detectado.\n\n⌗» ${e.message}`)
+      console.error('[play]', e)
+      m.reply('✘ Error detectado.\n\n⌗» ' + e.message)
     }
   },
 }
