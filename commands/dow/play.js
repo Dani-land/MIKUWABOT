@@ -9,7 +9,7 @@ const NYXDL_AUDIO = 'https://nyxdlapi.vercel.app/api/downloads/youtube'
 const NYXDL_VIDEO = 'https://nyxdlapi.vercel.app/api/downloads/youtube/mp4'
 
 const NEWSLETTER_JID = '120363420575743790@newsletter'
-const NEWSLETTER_NAME = 'Hatsune Miku / Wa'
+const NEWSLETTER_NAME = '✰ Hatsune Miku / Wa'
 
 const HEADERS = {
   'user-agent':
