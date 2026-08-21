@@ -24,7 +24,7 @@
     "prebuild-install": "6.1.4"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "@whiskeysockets/baileys": "git@github.com:Andresv27728/baileys-beta.git",
     "awesome-phonenumber": "^4.4.0",
     "boxen": "latest",
     "sharp": "latest",
