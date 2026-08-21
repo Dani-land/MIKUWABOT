@@ -124,9 +124,7 @@ export default {
 
       await client.sendMessage(m.chat, { text: header }, { quoted: m })
 
-      for (var i = 0; i < usable.length; i++) {
-        var v = usable[i]
-
+      var albumItems = usable.map(function (v, i) {
         var caption =
           '✦ TikTok Search\n' +
           '⌗» ' +
@@ -143,27 +141,92 @@ export default {
           formatCount(v.views) +
           ' Views'
 
+        return {
+          video: { url: v.url },
+          caption: caption,
+        }
+      })
+
+      // Álbum nativo Baileys 7.x
+      var albumOk = false
+      try {
+        await client.sendMessage(
+          m.chat,
+          {
+            album: albumItems,
+          },
+          { quoted: m }
+        )
+        albumOk = true
+      } catch (e1) {
+        console.log('[tts] album directo falló:', e1.message)
+
+        // Alternativa usada en algunos RC de Baileys 7
         try {
           await client.sendMessage(
             m.chat,
             {
-              video: { url: v.url },
-              caption: caption,
+              albumMessage: {
+                expectedImageCount: 0,
+                expectedVideoCount: albumItems.length,
+              },
             },
             { quoted: m }
           )
-        } catch (videoError) {
-          console.log('Error enviando video de TikTok:', videoError)
-          await client.sendMessage(
-            m.chat,
-            {
-              text: caption + '\n\n' + (v.link || v.url),
-            },
-            { quoted: m }
-          )
-        }
 
-        await sleep(1200)
+          for (var a = 0; a < albumItems.length; a++) {
+            await client.sendMessage(m.chat, albumItems[a], { quoted: m })
+            await sleep(400)
+          }
+          albumOk = true
+        } catch (e2) {
+          console.log('[tts] albumMessage falló:', e2.message)
+        }
+      }
+
+      // Fallback: uno por uno (siempre funciona)
+      if (!albumOk) {
+        console.log('[tts] enviando videos uno por uno')
+        for (var i = 0; i < usable.length; i++) {
+          var v = usable[i]
+          var caption =
+            '✦ TikTok Search\n' +
+            '⌗» ' +
+            (i + 1) +
+            '. ' +
+            v.title +
+            '\n' +
+            '♡ @' +
+            v.author +
+            '\n' +
+            '♡ ' +
+            formatCount(v.likes) +
+            ' Likes  •  ▶ ' +
+            formatCount(v.views) +
+            ' Views'
+
+          try {
+            await client.sendMessage(
+              m.chat,
+              {
+                video: { url: v.url },
+                caption: caption,
+              },
+              { quoted: m }
+            )
+          } catch (videoError) {
+            console.log('Error enviando video de TikTok:', videoError)
+            await client.sendMessage(
+              m.chat,
+              {
+                text: caption + '\n\n' + (v.link || v.url),
+              },
+              { quoted: m }
+            )
+          }
+
+          await sleep(1200)
+        }
       }
     } catch (e) {
       console.log(e)
