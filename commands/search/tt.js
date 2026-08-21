@@ -1,143 +1,163 @@
 import axios from 'axios'
 
+const NYXDL_API_KEY = 'nyx_NVRMcX8rP-YsEmGl-lyaLtks680B_ccH'
+const NYXDL_BASE = 'https://nyxdlapi.vercel.app'
+const NYXDL_TT_SEARCH = 'https://nyxdlapi.vercel.app/api/search/tiktoksearch'
+
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-function pickResults(data) {
-  return (
-    data?.data?.videos ||
-    data?.data?.aweme_list ||
-    data?.data?.items ||
-    data?.videos ||
-    []
-  )
-}
-
-function getVideoUrl(v) {
-  return (
-    v?.play ||
-    v?.play_url ||
-    v?.video?.play_addr?.url_list?.[0] ||
-    v?.video?.download_addr?.url_list?.[0] ||
-    v?.play_addr?.url_list?.[0] ||
-    v?.download_addr?.url_list?.[0] ||
-    v?.video?.play ||
-    null
-  )
-}
-
-function getAuthor(v) {
-  return (
-    v?.author?.unique_id ||
-    v?.author?.nickname ||
-    v?.author?.name ||
-    v?.author?.uid ||
-    'desconocido'
-  )
-}
-
-function getTitle(v) {
-  const t =
-    v?.title ||
-    v?.desc ||
-    v?.description ||
-    'Sin descripción'
-
-  return t.length > 80 ? t.slice(0, 80) + '...' : t
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms)
+  })
 }
 
 function formatCount(n) {
-  const num = Number(n || 0)
+  var num = Number(n || 0)
   if (Number.isNaN(num)) return '0'
   return num.toLocaleString()
+}
+
+function getTitle(v) {
+  var t = (v && v.title) || 'Sin descripción'
+  if (t.length > 80) return t.slice(0, 80) + '...'
+  return t
+}
+
+function getAuthor(v) {
+  if (!v) return 'desconocido'
+  if (v.author && typeof v.author === 'object') {
+    return v.author.username || v.author.name || 'desconocido'
+  }
+  return v.username || v.author || 'desconocido'
+}
+
+function getStats(v) {
+  var s = (v && v.statistics) || {}
+  return {
+    likes: s.likes || v.likes || 0,
+    views: s.vistas || s.views || v.views || 0,
+  }
+}
+
+function toAbsolute(u) {
+  if (!u || typeof u !== 'string') return null
+  var s = u.trim()
+  if (!s) return null
+  if (/^https?:\/\//i.test(s)) return s
+  if (s.indexOf('//') === 0) return 'https:' + s
+  if (s.charAt(0) === '/') return NYXDL_BASE + s
+  return null
 }
 
 export default {
   command: ['tiktoksearch', 'ttsearch', 'tts'],
   category: 'search',
 
-  run: async ({ client, m, args }) => {
+  run: async function (ctx) {
+    var client = ctx.client
+    var m = ctx.m
+    var args = ctx.args || []
+
     if (!args.length) {
       return m.reply('✧ Ingresa algo para buscar en TikTok.')
     }
 
-    const query = args.join(' ').trim()
+    var query = args.join(' ').trim()
 
     try {
-      const url = `https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(query)}&count=10&cursor=0`
+      var searchUrl =
+        NYXDL_TT_SEARCH +
+        '?q=' +
+        encodeURIComponent(query) +
+        '&apikey=' +
+        encodeURIComponent(NYXDL_API_KEY)
 
-      const { data } = await axios.get(url, {
-        timeout: 25000,
+      var res = await axios.get(searchUrl, {
+        timeout: 30000,
         headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'application/json'
-        }
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
       })
 
-      const results = pickResults(data)
+      var data = res.data
+      var results =
+        (data && data.result && data.result.results) ||
+        (data && data.result && data.result.resultados) ||
+        (data && data.results) ||
+        []
 
       if (!Array.isArray(results) || !results.length) {
-        return m.reply(`✘ No encontré resultados para *${query}*`)
+        return m.reply('✘ No encontré resultados para *' + query + '*')
       }
 
-      const usable = results
-        .map((v) => {
-          const videoUrl = getVideoUrl(v)
+      var usable = results
+        .map(function (v) {
+          var stats = getStats(v)
           return {
-            url: videoUrl,
+            url: toAbsolute(v.video || v.videoWatermarked),
             title: getTitle(v),
             author: getAuthor(v),
-            likes: v?.digg_count || v?.like_count || 0,
-            views: v?.play_count || v?.view_count || 0
+            likes: stats.likes,
+            views: stats.views,
+            link: v.url || null,
           }
         })
-        .filter(v => v.url)
+        .filter(function (v) {
+          return !!v.url
+        })
 
       if (!usable.length) {
-        return m.reply(`✘ Encontré resultados, pero no pude obtener los enlaces de video para *${query}*`)
+        return m.reply(
+          '✘ Encontré resultados, pero no pude obtener los videos para *' + query + '*'
+        )
       }
 
-      const top = usable.slice(0, 3)
+      var header =
+        '✦ Resultados de TikTok\n' +
+        '✧ Búsqueda › ' +
+        query +
+        '\n' +
+        '✧ Enviando ' +
+        usable.length +
+        ' videos...'
 
-      const header = `
-✦ Resultados de TikTok
-✧ Búsqueda › ${query}
-✧ Enviando ${top.length} videos...
-`.trim()
+      await client.sendMessage(m.chat, { text: header }, { quoted: m })
 
-      await client.sendMessage(
-        m.chat,
-        { text: header },
-        { quoted: m }
-      )
+      for (var i = 0; i < usable.length; i++) {
+        var v = usable[i]
 
-      for (let i = 0; i < top.length; i++) {
-        const v = top[i]
-
-        const caption = `
-✦ TikTok Search
-⌗» ${i + 1}. ${v.title}
-♡ @${v.author}
-♡ ${formatCount(v.likes)} Likes  •  ▶ ${formatCount(v.views)} Views
-`.trim()
+        var caption =
+          '✦ TikTok Search\n' +
+          '⌗» ' +
+          (i + 1) +
+          '. ' +
+          v.title +
+          '\n' +
+          '♡ @' +
+          v.author +
+          '\n' +
+          '♡ ' +
+          formatCount(v.likes) +
+          ' Likes  •  ▶ ' +
+          formatCount(v.views) +
+          ' Views'
 
         try {
           await client.sendMessage(
             m.chat,
             {
               video: { url: v.url },
-              caption
+              caption: caption,
             },
             { quoted: m }
           )
         } catch (videoError) {
           console.log('Error enviando video de TikTok:', videoError)
-
           await client.sendMessage(
             m.chat,
             {
-              text: `${caption}\n\n${v.url}`
+              text: caption + '\n\n' + (v.link || v.url),
             },
             { quoted: m }
           )
@@ -145,32 +165,9 @@ export default {
 
         await sleep(1200)
       }
-
-      const extra = usable.slice(3, 5)
-      if (extra.length) {
-        const listText = extra.map((v, i) => {
-          return (
-            `*${i + 4}.* ${v.title}\n` +
-            `@${v.author}\n` +
-            `♡ ${formatCount(v.likes)} Likes  •  ▶ ${formatCount(v.views)} Views\n` +
-            `${v.url}`
-          )
-        }).join('\n\n')
-
-        await client.sendMessage(
-          m.chat,
-          {
-            text: `✦ Más resultados\n\n${listText}`
-          },
-          { quoted: m }
-        )
-      }
-
     } catch (e) {
       console.log(e)
-      m.reply(
-        `❌ Error al buscar videos.\n\n${e.message || e}`
-      )
+      m.reply('❌ Error al buscar videos.\n\n' + (e.message || e))
     }
-  }
+  },
 }
