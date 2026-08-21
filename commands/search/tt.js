@@ -48,6 +48,26 @@ function toAbsolute(u) {
   return null
 }
 
+async function downloadBuffer(url) {
+  var res = await axios.get(url, {
+    responseType: 'arraybuffer',
+    timeout: 60000,
+    maxContentLength: 80 * 1024 * 1024,
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      Accept: '*/*',
+      Referer: NYXDL_BASE + '/',
+    },
+  })
+
+  var buf = Buffer.from(res.data)
+  if (!buf || buf.length < 5000) {
+    throw new Error('Archivo muy pequeño (' + (buf && buf.length) + ' bytes)')
+  }
+  return buf
+}
+
 export default {
   command: ['tiktoksearch', 'ttsearch', 'tts'],
   category: 'search',
@@ -71,14 +91,28 @@ export default {
         '&apikey=' +
         encodeURIComponent(NYXDL_API_KEY)
 
-      var res = await axios.get(searchUrl, {
-        timeout: 30000,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'application/json',
-        },
-      })
+      var res = null
+      var lastErr = null
+
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        try {
+          res = await axios.get(searchUrl, {
+            timeout: 35000,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Accept: 'application/json',
+            },
+          })
+          break
+        } catch (e) {
+          lastErr = e
+          console.log('[tts] search intento ' + attempt + ':', e.message)
+          if (attempt < 3) await sleep(1500 * attempt)
+        }
+      }
+
+      if (!res) throw lastErr || new Error('No se pudo conectar con la API')
 
       var data = res.data
       var results =
@@ -113,18 +147,25 @@ export default {
         )
       }
 
-      var header =
-        '✦ Resultados de TikTok\n' +
-        '✧ Búsqueda › ' +
-        query +
-        '\n' +
-        '✧ Enviando ' +
-        usable.length +
-        ' videos...'
+      await client.sendMessage(
+        m.chat,
+        {
+          text:
+            '✦ Resultados de TikTok\n' +
+            '✧ Búsqueda › ' +
+            query +
+            '\n' +
+            '✧ Enviando ' +
+            usable.length +
+            ' videos...',
+        },
+        { quoted: m }
+      )
 
-      await client.sendMessage(m.chat, { text: header }, { quoted: m })
+      var sent = 0
 
-      var albumItems = usable.map(function (v, i) {
+      for (var i = 0; i < usable.length; i++) {
+        var v = usable[i]
         var caption =
           '✦ TikTok Search\n' +
           '⌗» ' +
@@ -141,95 +182,69 @@ export default {
           formatCount(v.views) +
           ' Views'
 
-        return {
-          video: { url: v.url },
-          caption: caption,
-        }
-      })
+        var ok = false
 
-      // Álbum nativo Baileys 7.x
-      var albumOk = false
-      try {
-        await client.sendMessage(
-          m.chat,
-          {
-            album: albumItems,
-          },
-          { quoted: m }
-        )
-        albumOk = true
-      } catch (e1) {
-        console.log('[tts] album directo falló:', e1.message)
-
-        // Alternativa usada en algunos RC de Baileys 7
+        // 1) Buffer (más fiable con /api/media?token=...)
         try {
+          console.log('[tts] bajando', i + 1, v.url)
+          var buffer = await downloadBuffer(v.url)
           await client.sendMessage(
             m.chat,
             {
-              albumMessage: {
-                expectedImageCount: 0,
-                expectedVideoCount: albumItems.length,
-              },
+              video: buffer,
+              mimetype: 'video/mp4',
+              caption: caption,
             },
             { quoted: m }
           )
-
-          for (var a = 0; a < albumItems.length; a++) {
-            await client.sendMessage(m.chat, albumItems[a], { quoted: m })
-            await sleep(400)
-          }
-          albumOk = true
-        } catch (e2) {
-          console.log('[tts] albumMessage falló:', e2.message)
+          ok = true
+          sent++
+        } catch (e1) {
+          console.log('[tts] buffer falló', i + 1, e1.message)
         }
-      }
 
-      // Fallback: uno por uno (siempre funciona)
-      if (!albumOk) {
-        console.log('[tts] enviando videos uno por uno')
-        for (var i = 0; i < usable.length; i++) {
-          var v = usable[i]
-          var caption =
-            '✦ TikTok Search\n' +
-            '⌗» ' +
-            (i + 1) +
-            '. ' +
-            v.title +
-            '\n' +
-            '♡ @' +
-            v.author +
-            '\n' +
-            '♡ ' +
-            formatCount(v.likes) +
-            ' Likes  •  ▶ ' +
-            formatCount(v.views) +
-            ' Views'
-
+        // 2) URL directa
+        if (!ok) {
           try {
             await client.sendMessage(
               m.chat,
               {
                 video: { url: v.url },
+                mimetype: 'video/mp4',
                 caption: caption,
               },
               { quoted: m }
             )
-          } catch (videoError) {
-            console.log('Error enviando video de TikTok:', videoError)
-            await client.sendMessage(
-              m.chat,
-              {
-                text: caption + '\n\n' + (v.link || v.url),
-              },
-              { quoted: m }
-            )
+            ok = true
+            sent++
+          } catch (e2) {
+            console.log('[tts] url falló', i + 1, e2.message)
           }
-
-          await sleep(1200)
         }
+
+        // 3) Solo texto + link
+        if (!ok) {
+          await client.sendMessage(
+            m.chat,
+            {
+              text: caption + '\n\n🔗 ' + (v.link || v.url),
+            },
+            { quoted: m }
+          )
+        }
+
+        await sleep(1000)
+      }
+
+      if (sent === 0) {
+        await m.reply(
+          '✘ No pude enviar ningún video. Los links de media pueden estar caídos o bloqueados.'
+        )
+      } else {
+        await m.reply('✓ Enviados *' + sent + '* de *' + usable.length + '* videos.')
       }
     } catch (e) {
-      console.log(e)
+      console.log('[tts] ERROR:', e)
       m.reply('❌ Error al buscar videos.\n\n' + (e.message || e))
     }
   },
