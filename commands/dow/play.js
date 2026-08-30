@@ -3,10 +3,10 @@ import fetch from 'node-fetch'
 import sharp from 'sharp'
 
 const limit = 300
-const NYXDL_API_KEY = 'nyx_NVRMcX8rP-YsEmGl-lyaLtks680B_ccH'
-const NYXDL_BASE = 'https://nyxdlapi.vercel.app'
-const NYXDL_AUDIO = 'https://nyxdlapi.vercel.app/api/downloads/youtube'
-const NYXDL_VIDEO = 'https://nyxdlapi.vercel.app/api/downloads/youtube/mp4'
+const DVYER_API_KEY = 'dvyer2008'
+const DVYER_BASE = 'https://dv-yer-api.online'
+const DVYER_AUDIO = 'https://dv-yer-api.online/ytmp3'
+const DVYER_VIDEO = 'https://dv-yer-api.online/ytmp4'
 
 const NEWSLETTER_JID = '120363420575743790@newsletter'
 const NEWSLETTER_NAME = '✰ Hatsune Miku / Wa'
@@ -26,7 +26,7 @@ function abs(u) {
   if (!s) return null
   if (/^https?:\/\//i.test(s)) return s
   if (s.indexOf('//') === 0) return 'https:' + s
-  if (s.charAt(0) === '/') return NYXDL_BASE + s
+  if (s.charAt(0) === '/') return DVYER_BASE + s
   return null
 }
 
@@ -55,7 +55,8 @@ function extractVideoId(url) {
   }
 }
 
-async function callNyxDL(endpoint, ytUrl) {
+async function callDvyer(endpoint, ytUrl, extra) {
+  extra = extra || {}
   var clean = abs(ytUrl)
   if (!clean) {
     if (ytUrl && String(ytUrl).indexOf('http') === 0) clean = String(ytUrl).trim()
@@ -69,15 +70,17 @@ async function callNyxDL(endpoint, ytUrl) {
     endpoint +
     '?url=' +
     encodeURIComponent(clean) +
-    '&apikey=' +
-    encodeURIComponent(NYXDL_API_KEY)
+    '&mode=link&apikey=' +
+    encodeURIComponent(DVYER_API_KEY)
 
-  console.log('[NyxDL] GET', apiUrl)
+  if (extra.quality) {
+    apiUrl += '&quality=' + encodeURIComponent(extra.quality)
+  }
+
+  console.log('[dv-yer] GET', apiUrl)
 
   var lastErr = null
-  var attempts = 2
-
-  for (var i = 1; i <= attempts; i++) {
+  for (var i = 1; i <= 2; i++) {
     try {
       var controller = typeof AbortController !== 'undefined' ? new AbortController() : null
       var timer = null
@@ -92,49 +95,43 @@ async function callNyxDL(endpoint, ytUrl) {
         timeout: 90000,
         signal: controller ? controller.signal : undefined,
       })
-
       if (timer) clearTimeout(timer)
 
       var text = await res.text()
-
-      if (!res.ok) {
-        throw new Error('NyxDL HTTP ' + res.status + ': ' + text.slice(0, 180))
-      }
+      if (!res.ok) throw new Error('dv-yer HTTP ' + res.status + ': ' + text.slice(0, 180))
 
       var data
       try {
         data = JSON.parse(text)
       } catch (e) {
-        throw new Error('NyxDL no devolvió JSON: ' + text.slice(0, 180))
+        throw new Error('dv-yer no devolvió JSON: ' + text.slice(0, 180))
       }
 
-      var r = data && data.result ? data.result : {}
       var dl =
-        abs(r.download_url) ||
-        abs(r.download) ||
-        abs(r.url) ||
-        abs(r.datos && r.datos.url) ||
-        abs(r.datos && r.datos.download)
+        abs(data && data.download_url) ||
+        abs(data && data.stream_url) ||
+        abs(data && data.url) ||
+        abs(data && data.download_url_full) ||
+        abs(data && data.stream_url_full)
 
-      if (!data || !data.status || !dl) {
-        throw new Error((data && data.message) || 'NyxDL no devolvió link de descarga.')
+      if (!data || data.ok !== true || !dl) {
+        throw new Error((data && data.message) || 'dv-yer no devolvió link de descarga.')
       }
 
       return {
         dl: dl,
-        title: r.title || r.titulo || 'Sin título',
-        duration: r.duration || r.duracion || null,
-        channel: r.channel || r.canal || null,
-        quality: r.quality || (r.datos && r.datos.calidad) || null,
-        size: r.size || (r.datos && r.datos['tamaño']) || null,
-        thumbnail: abs(r.thumbnail) || null,
+        title: data.title || 'Sin título',
+        duration: data.duration_seconds || data.duration || null,
+        quality: data.quality || null,
+        size: data.size || null,
+        format: data.format || null,
+        mime: data.mime_type || null,
+        thumbnail: abs(data.thumbnail) || null,
       }
     } catch (e) {
       lastErr = e
-      var msg = (e && e.message) || String(e)
-      console.log('[NyxDL] intento ' + i + '/' + attempts + ' falló:', msg)
-
-      if (i < attempts && /ETIMEDOUT|timeout|aborted|ECONNRESET|ENOTFOUND|network/i.test(msg)) {
+      console.log('[dv-yer] intento ' + i + ' falló:', e.message)
+      if (i < 2 && /ETIMEDOUT|timeout|aborted|ECONNRESET|ENOTFOUND|network/i.test(e.message)) {
         await new Promise(function (r) {
           setTimeout(r, 2000)
         })
@@ -145,8 +142,7 @@ async function callNyxDL(endpoint, ytUrl) {
   }
 
   throw new Error(
-    'No se pudo conectar con la API (timeout). Prueba de nuevo en unos segundos.\nDetalle: ' +
-      ((lastErr && lastErr.message) || 'ETIMEDOUT')
+    'No se pudo conectar con la API.\nDetalle: ' + ((lastErr && lastErr.message) || 'error')
   )
 }
 
@@ -160,14 +156,14 @@ async function sendResult(opts) {
   var asDocument = opts.asDocument
 
   var result = isAudio
-    ? await callNyxDL(NYXDL_AUDIO, url)
-    : await callNyxDL(NYXDL_VIDEO, url)
+    ? await callDvyer(DVYER_AUDIO, url, {})
+    : await callDvyer(DVYER_VIDEO, url, { quality: '360p' })
 
   var finalTitle = result.title || title || 'archivo'
   var dl = abs(result.dl)
   if (!dl) throw new Error('Link de descarga vacío o inválido')
 
-  console.log('[NyxDL] download =', dl)
+  console.log('[dv-yer] download =', dl)
 
   var thumbBuffer = null
   var thumbSrc = result.thumbnail || abs(videoInfo && videoInfo.thumbnail)
@@ -192,8 +188,8 @@ async function sendResult(opts) {
   if (videoInfo && videoInfo.views != null) {
     lines.push('⌗» Vistas › ' + Number(videoInfo.views).toLocaleString())
   }
-  if (result.channel || (videoInfo && videoInfo.author && videoInfo.author.name)) {
-    lines.push('⌗» Canal › ' + (result.channel || videoInfo.author.name))
+  if (videoInfo && videoInfo.author && videoInfo.author.name) {
+    lines.push('⌗» Canal › ' + videoInfo.author.name)
   }
   if (videoInfo && videoInfo.ago) lines.push('⌗» Publicado › ' + videoInfo.ago)
   if (result.quality) lines.push('⌗» Calidad › ' + result.quality)
@@ -219,9 +215,11 @@ async function sendResult(opts) {
   }
 
   if (isAudio) {
+    var audioMime = result.mime || 'audio/mp4'
+    var ext = /mpeg|mp3/i.test(audioMime) ? '.mp3' : '.m4a'
     var audioMsg = {
-      mimetype: 'audio/mpeg',
-      fileName: finalTitle + '.mp3',
+      mimetype: audioMime,
+      fileName: finalTitle + ext,
       contextInfo: ctx,
     }
     if (asDocument) audioMsg.document = { url: dl }
