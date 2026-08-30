@@ -1,82 +1,46 @@
 import axios from 'axios'
 
-const DVYER_API_KEY = 'dvyer2008'
-const DVYER_TT_SEARCH = 'https://dv-yer-api.online/tiktok/search'
-const DVYER_TT_DL = 'https://dv-yer-api.online/ttdlmp4'
-const MAX_VIDEOS = 5
+const NYXDL_API_KEY = 'nyx_NVRMcX8rP-YsEmGl-lyaLtks680B_ccH'
+const NYXDL_BASE = 'https://nyxdlapi.vercel.app'
+const NYXDL_TT_SEARCH = 'https://nyxdlapi.vercel.app/api/search/tiktoksearch'
+const MAX_VIDEOS = 12
 
 function formatCount(n) {
   var num = Number(n || 0)
-  if (Number.isNaN(num) || n == null) return '0'
+  if (Number.isNaN(num)) return '0'
   return num.toLocaleString()
 }
 
 function getTitle(v) {
-  var t = (v && (v.title || v.description)) || 'Sin descripción'
+  var t = (v && v.title) || 'Sin descripción'
   if (t.length > 80) return t.slice(0, 80) + '...'
   return t
 }
 
 function getAuthor(v) {
   if (!v) return 'desconocido'
+  if (v.author && typeof v.author === 'object') {
+    return v.author.username || v.author.name || 'desconocido'
+  }
   return v.username || v.author || 'desconocido'
 }
 
-function getTikTokPage(v) {
-  return (
-    (v && (v.share_url || v.video_url)) ||
-    (v && v.links && v.links.tiktok) ||
-    null
-  )
+function getStats(v) {
+  var s = (v && v.statistics) || {}
+  return {
+    likes: s.likes || v.likes || 0,
+    views: s.vistas || s.views || v.views || 0,
+  }
 }
 
-async function resolveVideoUrl(tiktokPage) {
-  if (!tiktokPage) return null
-
-  var apiUrl =
-    DVYER_TT_DL +
-    '?url=' +
-    encodeURIComponent(tiktokPage) +
-    '&mode=link&apikey=' +
-    encodeURIComponent(DVYER_API_KEY)
-
-  var res = await axios.get(apiUrl, {
-    timeout: 45000,
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      Accept: 'application/json',
-    },
-  })
-
-  var d = res.data || {}
-  var videoUrl =
-    d.url ||
-    d.download_url ||
-    d.stream_url ||
-    d.download_url_full ||
-    d.stream_url_full ||
-    null
-
-  if (!videoUrl || typeof videoUrl !== 'string') return null
-  if (videoUrl.indexOf('//') === 0) videoUrl = 'https:' + videoUrl
-  return videoUrl
-}
-
-async function downloadBuffer(url) {
-  var res = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 90000,
-    maxContentLength: 80 * 1024 * 1024,
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      Accept: '*/*',
-    },
-  })
-  var buf = Buffer.from(res.data)
-  if (!buf || buf.length < 5000) throw new Error('archivo muy pequeño')
-  return buf
+function toAbsolute(u) {
+  if (!u || typeof u !== 'string') return null
+  var s = u.trim()
+  if (!s) return null
+  if (/^https?:\/\//i.test(s)) return s
+  if (s.indexOf('//') === 0) return 'https:' + s
+  if (s.charAt(0) === '/') return NYXDL_BASE + s
+  return null
 }
 
 export default {
@@ -96,16 +60,14 @@ export default {
 
     try {
       var searchUrl =
-        DVYER_TT_SEARCH +
-        '?apikey=' +
-        encodeURIComponent(DVYER_API_KEY) +
-        '&q=' +
+        NYXDL_TT_SEARCH +
+        '?q=' +
         encodeURIComponent(query) +
-        '&limit=' +
-        MAX_VIDEOS
+        '&apikey=' +
+        encodeURIComponent(NYXDL_API_KEY)
 
       var res = await axios.get(searchUrl, {
-        timeout: 35000,
+        timeout: 30000,
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -114,66 +76,32 @@ export default {
       })
 
       var data = res.data
-      var results = (data && data.results) || []
+      var results =
+        (data && data.result && data.result.results) ||
+        (data && data.result && data.result.resultados) ||
+        (data && data.results) ||
+        []
 
       if (!Array.isArray(results) || !results.length) {
         return m.reply('✘ No encontré resultados para *' + query + '*')
       }
 
-      var top = results.slice(0, MAX_VIDEOS)
-
-      await m.reply(
-        '✐ Encontré resultados. Preparando hasta *' + top.length + '* videos...'
-      )
-
-      var usable = []
-
-      for (var i = 0; i < top.length; i++) {
-        var item = top[i]
-        var page = getTikTokPage(item)
-        if (!page) continue
-
-        try {
-          var videoUrl = await resolveVideoUrl(page)
-          if (!videoUrl) continue
-
-          var caption =
-            '*ꕥ TikTok Búsqueda*\n' +
-            '⌗» ' +
-            (usable.length + 1) +
-            '. ' +
-            getTitle(item) +
-            '\n' +
-            '♡ @' +
-            getAuthor(item)
-
-          if (item.likes != null || item.views != null) {
-            caption +=
-              '\n♡ ' +
-              formatCount(item.likes) +
-              ' Likes  •  ▶ ' +
-              formatCount(item.views) +
-              ' Views'
+      var usable = results
+        .map(function (v) {
+          var stats = getStats(v)
+          return {
+            url: toAbsolute(v.video || v.videoWatermarked),
+            title: getTitle(v),
+            author: getAuthor(v),
+            likes: stats.likes,
+            views: stats.views,
+            link: v.url || null,
           }
-
-          // Preferir buffer para el álbum (más fiable)
-          var buffer = null
-          try {
-            buffer = await downloadBuffer(videoUrl)
-          } catch (e) {
-            console.log('[tts] buffer falló, usaré URL:', e.message)
-          }
-
-          usable.push({
-            url: videoUrl,
-            buffer: buffer,
-            caption: caption,
-            link: page,
-          })
-        } catch (e) {
-          console.log('[tts] omitido:', e.message)
-        }
-      }
+        })
+        .filter(function (v) {
+          return !!v.url
+        })
+        .slice(0, MAX_VIDEOS)
 
       if (!usable.length) {
         return m.reply(
@@ -181,39 +109,65 @@ export default {
         )
       }
 
-      // Álbum con buffers (o URL si no hubo buffer)
-      var album = usable.map(function (v) {
-        if (v.buffer) {
-          return { video: v.buffer, caption: v.caption }
+      await m.reply(
+        '✐ Encontré *' + results.length + '* resultados. Enviando *' + usable.length + '* videos...'
+      )
+
+      var album = usable.map(function (v, idx) {
+        var caption =
+          '*ꕥ TikTok Búsqueda*\n' +
+          '⌗» ' +
+          (idx + 1) +
+          '. ' +
+          v.title +
+          '\n' +
+          '♡ @' +
+          v.author +
+          '\n' +
+          '♡ ' +
+          formatCount(v.likes) +
+          ' Likes  •  ▶ ' +
+          formatCount(v.views) +
+          ' Views'
+
+        return {
+          video: { url: v.url },
+          caption: caption,
         }
-        return { video: { url: v.url }, caption: v.caption }
       })
 
       try {
         await client.sendMessage(m.chat, { album: album }, { quoted: m })
       } catch (albumErr) {
-        console.log('[tts] album falló, uno por uno:', albumErr.message)
-
+        console.log('[tiktoksearch] album falló, enviando uno por uno:', albumErr.message)
         for (var j = 0; j < usable.length; j++) {
           var v = usable[j]
+          var caption =
+            '*ꕥ TikTok Búsqueda*\n' +
+            '⌗» ' +
+            (j + 1) +
+            '. ' +
+            v.title +
+            '\n' +
+            '♡ @' +
+            v.author +
+            '\n' +
+            '♡ ' +
+            formatCount(v.likes) +
+            ' Likes  •  ▶ ' +
+            formatCount(v.views) +
+            ' Views'
+
           try {
-            if (v.buffer) {
-              await client.sendMessage(
-                m.chat,
-                { video: v.buffer, mimetype: 'video/mp4', caption: v.caption },
-                { quoted: m }
-              )
-            } else {
-              await client.sendMessage(
-                m.chat,
-                { video: { url: v.url }, mimetype: 'video/mp4', caption: v.caption },
-                { quoted: m }
-              )
-            }
+            await client.sendMessage(
+              m.chat,
+              { video: { url: v.url }, caption: caption },
+              { quoted: m }
+            )
           } catch (e) {
             await client.sendMessage(
               m.chat,
-              { text: v.caption + '\n\n' + (v.link || v.url) },
+              { text: caption + '\n\n' + (v.link || v.url) },
               { quoted: m }
             )
           }
