@@ -136,43 +136,7 @@ export default {
         }
       })
 
-      try {
-        await client.sendMessage(m.chat, { album: album }, { quoted: m })
-      } catch (albumErr) {
-        console.log('[tiktoksearch] album falló, enviando uno por uno:', albumErr.message)
-        for (var j = 0; j < usable.length; j++) {
-          var v = usable[j]
-          var caption =
-            '*ꕥ TikTok Búsqueda*\n' +
-            '⌗» ' +
-            (j + 1) +
-            '. ' +
-            v.title +
-            '\n' +
-            '♡ @' +
-            v.author +
-            '\n' +
-            '♡ ' +
-            formatCount(v.likes) +
-            ' Likes  •  ▶ ' +
-            formatCount(v.views) +
-            ' Views'
-
-          try {
-            await client.sendMessage(
-              m.chat,
-              { video: { url: v.url }, caption: caption },
-              { quoted: m }
-            )
-          } catch (e) {
-            await client.sendMessage(
-              m.chat,
-              { text: caption + '\n\n' + (v.link || v.url) },
-              { quoted: m }
-            )
-          }
-        }
-      }
+      await client.sendMessage(m.chat, { album: album }, { quoted: m })
     } catch (e) {
       console.log(
         '[tiktoksearch] ERROR:',
