@@ -41,8 +41,6 @@ export const participantsUpdate = async (client, anu) => {
     try {
         if (!anu?.id || !anu.id.endsWith('@g.us')) return
 
-        // group-participants.update puede llegar antes que el primer mensaje
-        // del grupo. En ese caso initDB aún no creó esta entrada.
         if (!global.db.data.chats[anu.id]) {
             global.db.data.chats[anu.id] = {}
         }
@@ -50,8 +48,6 @@ export const participantsUpdate = async (client, anu) => {
         if (typeof chat.welcome !== 'boolean') chat.welcome = true
         if (typeof chat.alerts !== 'boolean') chat.alerts = true
 
-        // En grupos grandes groupMetadata puede tardar o fallar. El caché
-        // deduplica las consultas y permite continuar con datos mínimos.
         const metadata = await getGroupMetadata(client, anu.id) || {
             subject: 'este grupo',
             participants: [],
@@ -60,11 +56,10 @@ export const participantsUpdate = async (client, anu) => {
         const primaryBotId = chat?.primaryBot
         const isPrimary = !primaryBotId || sameJid(primaryBotId, botId)
 
-        // Baileys antiguo entrega strings; las versiones nuevas pueden
-        // entregar objetos con id/lid/phoneNumber.
         const entries = Array.isArray(anu.participants) ? anu.participants : []
         const metadataCount = metadata.participants.length
         const memberCount = metadataCount > 0 ? metadataCount : entries.length
+
         for (const entry of entries) {
             const participant = typeof entry === 'string' ? { id: entry } : (entry || {})
             const originalJid = participant.id || participant.lid || participant.phoneNumber
@@ -78,27 +73,28 @@ export const participantsUpdate = async (client, anu) => {
             const phone = mentionJid.split('@')[0]
             const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://files.catbox.moe/sxt0he.jpeg')
 
+            // ==================== BIENVENIDA ====================
             if (anu.action === 'add' && chat?.welcome && isPrimary) {
-                const caption = `✿ Bienvenido ✿
+                const caption = `✿ Bienvenido✿\n\n` +
+                    `ᰔᩚ Usuario ›⠀@${phone}\n` +
+                    `ꕤ Grupo ›⠀⠀${metadata.subject}\n` +
+                    `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
+                    `ꕤ Usa *#menu* para ver todos los comandos`
 
-⌗» Usuario ›⠀@${phone}
-⌗» Grupo ›⠀⠀⠀${metadata.subject}
-⌗» Miembros ›⠀${memberCount}
-
-✰ Usa ⁠*#menu*⁠ para ver los comandos disponibles.`
                 await client.sendMessage(anu.id, {
                     image: { url: pp },
                     caption: caption,
                     mentions: [mentionJid],
                 })
             }
+
+            // ==================== DESPEDIDA ====================
             if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome && isPrimary) {
-                const caption = `❀ Hasta luego ❀
+                const caption = `❀ Hasta luego❀\n\n` +
+                    `ᰔᩚ Usuario ›⠀@${phone}\n` +
+                    `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
+                    `✿ Esperamos verte pronto`
 
-⌗» Usuario ›⠀@${phone}
-⌗» Miembros ›⠀${memberCount}
-
-✎ Esperamos verte de vuelta pronto.`
                 await client.sendMessage(anu.id, {
                     image: { url: pp },
                     caption: caption,
@@ -106,10 +102,11 @@ export const participantsUpdate = async (client, anu) => {
                 })
             }
 
+            // ==================== PROMOTE / DEMOTE ====================
             if (anu.action === 'promote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
-                    text: `✧ @${phone} ha sido promovido a *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,
+                    text: `✧ @\( {phone} ha sido promovido a *Administrador* por @ \){usuario?.split('@')[0] || 'Sistema'}.`,
                     mentions: [jid, usuario].filter(Boolean)
                 })
             }
@@ -117,7 +114,7 @@ export const participantsUpdate = async (client, anu) => {
             if (anu.action === 'demote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
-                    text: `✧ @${phone} ha sido degradado de *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,
+                    text: `✧ @\( {phone} ha sido degradado de *Administrador* por @ \){usuario?.split('@')[0] || 'Sistema'}.`,
                     mentions: [jid, usuario].filter(Boolean)
                 })
             }
