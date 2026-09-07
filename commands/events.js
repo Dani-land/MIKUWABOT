@@ -108,7 +108,7 @@ export const participantsUpdate = async (client, anu) => {
             if (anu.action === 'promote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
-                    text: `✧ @\( {phone} ha sido promovido a *Administrador* por @ \){usuario?.split('@')[0] || 'Sistema'}.`,
+                    text: `✧ @${phone} ha sido promovido a *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,
                     mentions: [jid, usuario].filter(Boolean)
                 })
             }
@@ -116,7 +116,7 @@ export const participantsUpdate = async (client, anu) => {
             if (anu.action === 'demote' && chat?.alerts && isPrimary) {
                 const usuario = anu.author
                 await client.sendMessage(anu.id, {
-                    text: `✧ @\( {phone} ha sido degradado de *Administrador* por @ \){usuario?.split('@')[0] || 'Sistema'}.`,
+                    text: `✧ @${phone} ha sido degradado de *Administrador* por @${usuario?.split('@')[0] || 'Sistema'}.`,
                     mentions: [jid, usuario].filter(Boolean)
                 })
             }
