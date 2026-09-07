@@ -71,12 +71,14 @@ export const participantsUpdate = async (client, anu) => {
             }
             const mentionJid = jid || originalJid
             const phone = mentionJid.split('@')[0]
+            const pushName = participant.pushName || 'Usuario'
+
             const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://files.catbox.moe/sxt0he.jpeg')
 
-            // ==================== BIENVENIDA ====================
+            // ==================== BIENVENIDA (con nombre real) ====================
             if (anu.action === 'add' && chat?.welcome && isPrimary) {
                 const caption = `✿ Bienvenido✿\n\n` +
-                    `ᰔᩚ Usuario ›⠀@${phone}\n` +
+                    `ᰔᩚ ${pushName}\n` +
                     `ꕤ Grupo ›⠀⠀${metadata.subject}\n` +
                     `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
                     `ꕤ Usa *#menu* para ver todos los comandos`
@@ -91,7 +93,7 @@ export const participantsUpdate = async (client, anu) => {
             // ==================== DESPEDIDA ====================
             if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome && isPrimary) {
                 const caption = `❀ Hasta luego❀\n\n` +
-                    `ᰔᩚ Usuario ›⠀@${phone}\n` +
+                    `ᰔᩚ ${pushName}\n` +
                     `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
                     `✿ Esperamos verte pronto`
 
