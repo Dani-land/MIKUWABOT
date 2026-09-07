@@ -75,7 +75,7 @@ export const participantsUpdate = async (client, anu) => {
 
             const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://files.catbox.moe/sxt0he.jpeg')
 
-            // ==================== BIENVENIDA (con nombre real) ====================
+            // ==================== BIENVENIDA ====================
             if (anu.action === 'add' && chat?.welcome && isPrimary) {
                 const caption = `✿ Bienvenido✿\n\n` +
                     `ᰔᩚ ${pushName}\n` +
