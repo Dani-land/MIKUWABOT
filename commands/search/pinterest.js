@@ -78,8 +78,7 @@ export default {
 
       const results = await searchPinterest(query, limit)
 
-      const pickImage = (v) =>
-        v.image || v.img || v.url || v.thumbnail || v.imageUrl || v.image_url
+      const pickImage = (v) => v.image || v.download || v.descarga
 
       let enviados = 0
 
@@ -90,8 +89,8 @@ export default {
         }
 
         let txt = `☾︎ ᑭIᑎTᗴᖇᗴՏT Տᗴᗩᖇᕼ ☽︎\n\n`
-        txt += `⌗» 𝚃𝚒𝚝𝚞𝚕𝚘 › ${v.title || 'Sin título'}\n`
-        if (v.description) txt += `⌗» 𝙳𝚎𝚜𝚌𝚛𝚒𝚙𝚌𝚒𝚘𝚗 › ${v.description}\n`
+        txt += `⌗» 𝚃𝚒𝚝𝚞𝚕𝚘 › ${v.titulo || 'Sin título'}\n`
+        if (v.desc) txt += `⌗» 𝙳𝚎𝚜𝚌𝚛𝚒𝚙𝚌𝚒𝚘𝚗 › ${v.desc}\n`
         txt += `⌗» 𝙰𝚙𝚒 𝚞𝚜𝚊𝚍𝚊 › NyxDLaPI\n\n`
         txt += `☕︎ 𝙱𝚞𝚜𝚚𝚞𝚎𝚍𝚊 › ${query}`
 
