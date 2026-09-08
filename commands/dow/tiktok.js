@@ -48,11 +48,11 @@ export default {
 
       const caption = `✰ TikTok ✰
 
-⌗ Usuario: ${result.author || result.username || 'Desconocido'}
-⌗ Descripción: ${result.title || 'Sin descripción'}
-⌗ Canción: ${result.musicTitle || 'N/A'}${result.musicArtist ? ` - ${result.musicArtist}` : ''}
+⌗ 𝕌𝕤𝕦𝕒𝕣𝕚𝕠: ${result.author || result.username || 'Desconocido'}
+⌗ 𝔻𝕖𝕤𝕔𝕣𝕚𝕡𝕔𝕚𝕠𝕟: ${result.title || 'Sin descripción'}
+⌗ ℂ𝕒𝕟𝕔𝕚𝕠𝕟: ${result.musicTitle || 'N/A'}${result.musicArtist ? ` - ${result.musicArtist}` : ''}
 
-⌗ Api: ${NYX_BASE}`
+⌗ ᴀᴘɪ : ${NYX_BASE}`
 
       await client.sendMessage(
         m.chat,
