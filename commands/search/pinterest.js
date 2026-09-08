@@ -26,8 +26,6 @@ async function searchPinterest(query, limit) {
   return json.result.results
 }
 
-// Descarga la imagen con headers "de navegador" para evitar el bloqueo
-// de hotlinking de Pinterest (por eso salía la burbuja rota)
 async function downloadImage(url) {
   const res = await fetch(url, {
     headers: {
@@ -80,7 +78,6 @@ export default {
 
       const results = await searchPinterest(query, limit)
 
-      // debug: mira en tu consola cómo viene el primer resultado
       console.log('[pinterest] ejemplo de resultado:', JSON.stringify(results[0], null, 2))
 
       const pickImage = (v) =>
@@ -104,14 +101,9 @@ export default {
         try {
           const buffer = await downloadImage(imgUrl)
 
-          // === CÁMBIO AQUÍ: Enviar como álbum ===
           await client.sendMessage(
             m.chat,
-            {
-              album: [
-                { image: buffer, caption: txt }
-              ]
-            },
+            { album: [ { image: buffer, caption: txt } ] },
             { quoted: m }
           )
           enviados++
