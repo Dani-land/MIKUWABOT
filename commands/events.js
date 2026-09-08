@@ -77,11 +77,11 @@ export const participantsUpdate = async (client, anu) => {
 
             // ==================== BIENVENIDA ====================
             if (anu.action === 'add' && chat?.welcome && isPrimary) {
-                const caption = `✿ Bienvenido✿\n\n` +
-                    `ᰔᩚ ${pushName}\n` +
-                    `ꕤ Grupo ›⠀⠀${metadata.subject}\n` +
-                    `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
-                    `ꕤ Usa *#menu* para ver todos los comandos`
+                const caption = `ꨄ︎ 𝔹𝕚𝕖𝕟𝕧𝕖𝕟𝕚𝕕𝕠\n\n` +
+                    `☁︎ ${pushName}\n` +
+                    `ꕤ ᘜᖇᑌᑭO ›⠀⠀${metadata.subject}\n` +
+                    `ʕ·ᴥ·ʔ ᗰIᗴᗰᗷᖇOՏ ›⠀${memberCount}\n\n` +
+                    `𝚄𝚜𝚊 *#𝚑𝚎𝚕𝚙* 𝚙𝚊𝚛𝚊 𝚟𝚎𝚛 𝚕𝚊 𝚕𝚒𝚜𝚝𝚊 𝚍𝚎 𝚌𝚘𝚖𝚊𝚗𝚍𝚘𝚜.`
 
                 await client.sendMessage(anu.id, {
                     image: { url: pp },
@@ -92,10 +92,10 @@ export const participantsUpdate = async (client, anu) => {
 
             // ==================== DESPEDIDA ====================
             if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome && isPrimary) {
-                const caption = `❀ Hasta luego❀\n\n` +
+                const caption = `᯽ 𝔾𝕠𝕠𝕕𝕓𝕪𝕖\n\n` +
                     `ᰔᩚ ${pushName}\n` +
-                    `ʕ·ᴥ·ʔ Miembros ›⠀${memberCount}\n\n` +
-                    `✿ Esperamos verte pronto`
+                    `ʕ·ᴥ·ʔ ᗰIᗴᗰᗷᖇOՏ ›⠀${memberCount}\n\n` +
+                    `✿ 𝙴𝚜𝚙𝚎𝚛𝚎𝚖𝚘𝚜 𝚚𝚞𝚎 𝚛𝚎𝚐𝚛𝚎𝚜𝚎𝚜 𝚙𝚛𝚘𝚗𝚝𝚘`
 
                 await client.sendMessage(anu.id, {
                     image: { url: pp },
