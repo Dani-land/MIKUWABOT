@@ -52,7 +52,7 @@ export default {
 
     if (!text) {
       return m.reply(
-`✐ Ingresa un término de búsqueda.
+`✐ 𝙸𝚗𝚐𝚛𝚎𝚜𝚊 𝚊𝚕𝚐𝚞𝚗 𝚝𝚒𝚙𝚘 𝚍𝚎 𝚋𝚞𝚜𝚚𝚞𝚎𝚍𝚊.
 
 ✰ Ejemplo:
 .pin anime icons
@@ -76,7 +76,7 @@ export default {
     }
 
     try {
-      await m.reply('☕︎ Buscando resultados de Pinterest...')
+      await m.reply('ꨄ︎ 𝐵𝑢𝑠𝑐𝑎𝑛𝑑𝑜 𝑖𝑚𝑎𝑔𝑒𝑛𝑒𝑠 𝑒𝑛 𝑝𝑖𝑛𝑡𝑒𝑟𝑒𝑠𝑡...')
 
       const results = await searchPinterest(query, limit)
 
@@ -95,11 +95,11 @@ export default {
           continue
         }
 
-        let txt = `✿ Pinterest Search\n\n`
-        txt += `⌗» Título › ${v.title || 'Sin título'}\n`
-        if (v.description) txt += `⌗» Descripción › ${v.description}\n`
-        txt += `⌗» Proxy usada › NyxDLaPI\n\n`
-        txt += `☕︎ Búsqueda › ${query}`
+        let txt = `☾︎ ᑭIᑎTᗴᖇᗴՏT Տᗴᗩᖇᕼ ☽︎\n\n`
+        txt += `⌗» 𝚃𝚒𝚝𝚞𝚕𝚘 › ${v.title || 'Sin título'}\n`
+        if (v.description) txt += `⌗» 𝙳𝚎𝚜𝚌𝚛𝚒𝚙𝚌𝚒𝚘𝚗 › ${v.description}\n`
+        txt += `⌗» 𝙰𝚙𝚒 𝚞𝚜𝚊𝚍𝚊 › NyxDLaPI\n\n`
+        txt += `☕︎ 𝙱𝚞𝚜𝚚𝚞𝚎𝚍𝚊 › ${query}`
 
         try {
           const buffer = await downloadImage(imgUrl)
