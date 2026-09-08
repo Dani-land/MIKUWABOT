@@ -79,15 +79,15 @@ export default {
       menu += `> ${ucapan} *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
 
       menu += `୨୧ ───────────── ୨୧\n`
-      menu += `✦ 𝐌𝐢𝐤𝐮 𝐖𝐚𝐛𝐨𝐭 ✦\n`
+      menu += `ꨄ︎ ᗰIKᑌ ᗯᗩᗷOT\n`
       menu += `୨୧ ───────────── ୨୧\n`
 
-      menu += `✐ *${ownerLabel} ›* ${ownerDisplay}\n`
-      menu += `✐ *Plugins ›* ${plugins}\n`
-      menu += `✐ *Versión ›* 3.1.9\n`
-      menu += `✐ *Link ›* ${link}\n\n`
-      menu += `✐ *Fecha ›* ${tiempo}, ${tiempo2}\n`
-      menu += `✐ *Users ›* ${Object.keys(users).length.toLocaleString()}\n`
+      menu += `❁ *𝙲𝚛𝚎𝚊𝚍𝚘𝚛 ›* ${ownerDisplay}\n`
+      menu += `𖧷 *𝙿𝚕𝚞𝚐𝚒𝚗𝚜 ›* ${plugins}\n`
+      menu += `⌫ *𝚅𝚎𝚛𝚜𝚒𝚘𝚗 ›* 3.1.9\n`
+      menu += `☁︎ *𝙻𝚒𝚗𝚔 ›* ${link}\n\n`
+      menu += `ꕥ *𝙵𝚎𝚌𝚑𝚊 ›* ${tiempo}, ${tiempo2}\n`
+      menu += `𖨆 *𝚄𝚜𝚎𝚛𝚜 ›* ${Object.keys(users).length.toLocaleString()}\n`
       menu += `୨୧ ───────────── ୨୧\n`
 
       const categoryArg = args[0]?.toLowerCase()
