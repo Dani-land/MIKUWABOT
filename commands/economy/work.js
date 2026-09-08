@@ -29,15 +29,13 @@ export default {
     await client.sendMessage(
       m.chat,
       {
-        text: `╭─〔 💼 TRABAJO COMPLETADO 〕─╮
+        text: `𝕋𝕣𝕒𝕓𝕒𝕛𝕠 𝕔𝕠𝕞𝕡𝕝𝕖𝕥𝕒𝕕𝕠
 
 ✦ ${pickRandom(trabajo)}
 
 > +¥${rsl.toLocaleString()} ${monedas}
 
-📈 Tu esfuerzo dio buenos resultados.
-
-╰────────────────╯`
+(◕‿◕) 🆃🆄 🅴🆂🅵🆄🅴🆁🆉🅾 🅳🅸🅾 🅱🆄🅴🅽🅾🆂 🆁🅴🆂🆄🅻🆃🅰🅳🅾🆂`
       },
       { quoted: m }
     );
