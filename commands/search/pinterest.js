@@ -80,37 +80,36 @@ export default {
 
       const pickImage = (v) => v.image || v.download || v.descarga
 
-      let enviados = 0
+      const albumItems = []
 
       for (const v of results.slice(0, limit)) {
         const imgUrl = pickImage(v)
-        if (!imgUrl) {
-          continue
-        }
-
-        let txt = `☾︎ ᑭIᑎTᗴᖇᗴՏT Տᗴᗩᖇᕼ ☽︎\n\n`
-        txt += `⌗» 𝚃𝚒𝚝𝚞𝚕𝚘 › ${v.titulo || 'Sin título'}\n`
-        if (v.desc) txt += `⌗» 𝙳𝚎𝚜𝚌𝚛𝚒𝚙𝚌𝚒𝚘𝚗 › ${v.desc}\n`
-        txt += `⌗» 𝙰𝚙𝚒 𝚞𝚜𝚊𝚍𝚊 › NyxDLaPI\n\n`
-        txt += `☕︎ 𝙱𝚞𝚜𝚚𝚞𝚎𝚍𝚊 › ${query}`
+        if (!imgUrl) continue
 
         try {
           const buffer = await downloadImage(imgUrl)
-
-          await client.sendMessage(
-            m.chat,
-            { album: [ { image: buffer, caption: txt } ] },
-            { quoted: m }
-          )
-          enviados++
-          await new Promise((r) => setTimeout(r, 600))
-        } catch (sendErr) {
-        }
+          albumItems.push({ image: buffer, caption: v.titulo || undefined })
+        } catch (sendErr) {}
       }
 
-      if (enviados === 0) {
-        await m.reply('✘ No se pudo enviar ninguna imagen. Revisa la consola: puede que el campo de imagen o la URL de Pinterest no sean válidos.')
+      if (!albumItems.length) {
+        return m.reply('✘ No se pudo enviar ninguna imagen. Revisa la consola: puede que el campo de imagen o la URL de Pinterest no sean válidos.')
       }
+
+      const infoTxt =
+        `☾︎ ᑭIᑎTᗴᖇᗴՏT Տᗴᗩᖇᕼ ☽︎\n\n` +
+        `⌗» 𝙰𝚙𝚒 𝚞𝚜𝚊𝚍𝚊 › NyxDLaPI\n` +
+        `☕︎ 𝙱𝚞𝚜𝚚𝚞𝚎𝚍𝚊 › ${query}`
+
+      albumItems[0].caption = albumItems[0].caption
+        ? `${infoTxt}\n\n⌗» 𝚃𝚒𝚝𝚞𝚕𝚘 › ${albumItems[0].caption}`
+        : infoTxt
+
+      await client.sendMessage(
+        m.chat,
+        { album: albumItems },
+        { quoted: m }
+      )
     } catch (e) {
       console.log('[pinterest]', e.message)
       m.reply(
