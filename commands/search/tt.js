@@ -110,12 +110,12 @@ export default {
       }
 
       await m.reply(
-        '✐ Encontré *' + results.length + '* resultados. Enviando *' + usable.length + '* videos...'
+        '✐ Encontré *' + results.length + '* resultados. ᗴᑎᐯIᗩᑎᗪO *' + usable.length + '* ᐯIᗪᗴOՏ...'
       )
 
       var album = usable.map(function (v, idx) {
         var caption =
-          '*ꕥ TikTok Búsqueda*\n' +
+          '*ꕥ 𝐓𝐢𝐤𝐭𝐨𝐤 𝐛𝐮𝐬𝐪𝐮𝐞𝐝𝐚*\n' +
           '⌗» ' +
           (idx + 1) +
           '. ' +
