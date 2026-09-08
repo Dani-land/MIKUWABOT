@@ -39,7 +39,7 @@ export default {
 
       const caption = `*乂 FACEBOOK - DOWNLOAD 乂*
 
-✰ *Enlace:*  
+✰ *ᗴᑎᒪᗩᑕᗴ:*  
 ${args[0]}`;
 
       await client.sendMessage(
