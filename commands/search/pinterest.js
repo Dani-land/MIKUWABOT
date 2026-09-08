@@ -78,8 +78,6 @@ export default {
 
       const results = await searchPinterest(query, limit)
 
-      console.log('[pinterest] ejemplo de resultado:', JSON.stringify(results[0], null, 2))
-
       const pickImage = (v) =>
         v.image || v.img || v.url || v.thumbnail || v.imageUrl || v.image_url
 
@@ -88,7 +86,6 @@ export default {
       for (const v of results.slice(0, limit)) {
         const imgUrl = pickImage(v)
         if (!imgUrl) {
-          console.log('[pinterest] resultado sin imagen, se omite:', v)
           continue
         }
 
@@ -109,7 +106,6 @@ export default {
           enviados++
           await new Promise((r) => setTimeout(r, 600))
         } catch (sendErr) {
-          console.log('[pinterest] fallo con una imagen, se omite:', sendErr.message)
         }
       }
 
