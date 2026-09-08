@@ -182,20 +182,20 @@ async function sendResult(opts) {
   var lines = ['✿ *' + finalTitle + '*', '']
   if (result.duration || (videoInfo && (videoInfo.timestamp || videoInfo.duration))) {
     lines.push(
-      '⌗» Duración › ' + (result.duration || videoInfo.timestamp || videoInfo.duration)
+      '⌗» 𝙳𝚞𝚛𝚊𝚌𝚒𝚘𝚗 › ' + (result.duration || videoInfo.timestamp || videoInfo.duration)
     )
   }
   if (videoInfo && videoInfo.views != null) {
-    lines.push('⌗» Vistas › ' + Number(videoInfo.views).toLocaleString())
+    lines.push('⌗» 𝚅𝚒𝚜𝚝𝚊𝚜 › ' + Number(videoInfo.views).toLocaleString())
   }
   if (videoInfo && videoInfo.author && videoInfo.author.name) {
-    lines.push('⌗» Canal › ' + videoInfo.author.name)
+    lines.push('⌗» 𝙲𝚊𝚗𝚊𝚕 › ' + videoInfo.author.name)
   }
-  if (videoInfo && videoInfo.ago) lines.push('⌗» Publicado › ' + videoInfo.ago)
-  if (result.quality) lines.push('⌗» Calidad › ' + result.quality)
-  if (result.size) lines.push('⌗» Tamaño › ' + result.size)
+  if (videoInfo && videoInfo.ago) lines.push('⌗» 𝙿𝚞𝚋𝚕𝚒𝚌𝚊𝚍𝚘 › ' + videoInfo.ago)
+  if (result.quality) lines.push('⌗» 𝙲𝚊𝚕𝚒𝚍𝚊𝚍 › ' + result.quality)
+  if (result.size) lines.push('⌗» 𝚃𝚊𝚖𝚊𝚗̃𝚘 › ' + result.size)
   lines.push('')
-  lines.push(isAudio ? '✐ Enviando audio...' : '✐ Enviando video...')
+  lines.push(isAudio ? '❁ ᗴᑎᐯIᗩᑎᗪO ᗩᑌᗪIO...' : '𑁍 ᗴᑎᐯIᗩᑎᗪO ᐯIᗪᗴO...')
 
   var infoText = lines.join('\n')
   var ctx = newsletterContext()
@@ -313,7 +313,7 @@ export default {
 
     try {
       if (!text || !String(text).trim()) {
-        return client.reply(m.chat, '✐ Ingresa un nombre o URL de YouTube.', m)
+        return client.reply(m.chat, '𖣘 Ingresa un nombre o URL de YouTube.', m)
       }
 
       var isAudio = ['play', 'mp3', 'playaudio', 'ytmp3', 'playdoc', 'play2'].indexOf(command) !== -1
