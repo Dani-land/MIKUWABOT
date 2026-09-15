@@ -11,7 +11,7 @@ export default {
       )
     }
 
-    await m.reply(`☕︎ Espera un momento estoy buscando...`)
+    await m.reply(`☁︎ Espera un momento estoy buscando...`)
 
     const ress = await yts(`${args[0]}`)
     const armar = ress.all
