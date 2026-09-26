@@ -1,1 +1,0 @@
-- [Procesamiento de tarjetas](imagemagick-runtime.md) — las tarjetas de bienvenida usan la herramienta ImageMagick del entorno para composición sin añadir dependencias npm.
