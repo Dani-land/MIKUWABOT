@@ -20,7 +20,7 @@ global.bot = {
 global.prefa = '/'
 
 global.mods = [
-  '5216241181534'
+  '12602764655'
 ]
 
 global.msgglobal = 'Hubo un error use el comando /reporte <problema> para avisarle a nuestros desarrolladores.'
