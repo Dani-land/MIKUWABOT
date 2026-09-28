@@ -159,15 +159,25 @@ async function getWelcomeTemplate() {
 async function downloadImage(url) {
     if (!url) return null
 
-    try {
-        const response = await fetch(url, {
-            signal: AbortSignal.timeout(8000),
-        })
-        if (!response.ok) return null
-        return Buffer.from(await response.arrayBuffer())
-    } catch {
-        return null
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'user-agent': 'Mozilla/5.0 MikuWabot/1.0',
+                },
+                signal: AbortSignal.timeout(8000),
+            })
+            if (!response.ok) continue
+
+            const buffer = Buffer.from(await response.arrayBuffer())
+            if (buffer.length > 0) return buffer
+        } catch {
+            // WhatsApp puede devolver temporalmente una URL caducada.
+        }
     }
+
+    return null
 }
 
 async function makeCircularAvatar(buffer, tempDir, size = 270) {
@@ -207,11 +217,19 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
     try {
         const templatePath = path.join(tempDir, 'template.png')
         const nameOverlayPath = path.join(tempDir, 'name.svg')
+        const avatarOutputPath = path.join(tempDir, 'welcome-with-avatar.png')
         const outputPath = path.join(tempDir, 'welcome.png')
         await fs.writeFile(templatePath, template)
 
         const avatar = await downloadImage(profilePictureUrl)
-        const avatarPath = avatar ? await makeCircularAvatar(avatar, tempDir) : null
+        let avatarPath = null
+        if (avatar) {
+            try {
+                avatarPath = await makeCircularAvatar(avatar, tempDir)
+            } catch (error) {
+                console.error(`[WELCOME AVATAR] No se pudo preparar la foto: ${error.message}`)
+            }
+        }
 
         await fs.writeFile(nameOverlayPath, `
         <svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
@@ -251,11 +269,22 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
                 avatarPath,
                 '-geometry', '+178+402',
                 '-composite',
+                avatarOutputPath,
             )
+        } else {
+            imageArgs.push(avatarOutputPath)
         }
-        imageArgs.push('-background', 'none', nameOverlayPath, '-composite', outputPath)
-
         await execFileAsync('magick', imageArgs, { timeout: 15000 })
+
+        // Render the name in a separate step so an unavailable profile photo
+        // can never remove the text or make the whole welcome card fail.
+        await execFileAsync('magick', [
+            avatarOutputPath,
+            '-background', 'none',
+            nameOverlayPath,
+            '-composite',
+            outputPath,
+        ], { timeout: 15000 })
         return await fs.readFile(outputPath)
     } catch (error) {
         console.error(`[WELCOME IMAGE] No se pudo generar la tarjeta: ${error.message}`)
