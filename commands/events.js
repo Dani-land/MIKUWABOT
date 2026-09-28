@@ -15,13 +15,13 @@ let welcomeTemplatePromise
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
 const welcomeAvatar = {
-    size: 360,
-    left: 240,
-    top: 450,
+    size: 260,
+    left: 290,
+    top: 500,
     centerX: 420,
     centerY: 630,
-    frameRadius: 220,
-    wellRadius: 200,
+    frameRadius: 150,
+    wellRadius: 140,
 }
 
 function escapeXml(value) {
