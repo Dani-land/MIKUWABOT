@@ -20,7 +20,6 @@ const welcomeAvatar = {
     top: 500,
     centerX: 420,
     centerY: 630,
-    frameRadius: 150,
     wellRadius: 140,
 }
 
@@ -236,29 +235,6 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
         </svg>
         `)
 
-        const avatarFrame = Buffer.from(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
-            <circle
-                cx="${welcomeAvatar.centerX}"
-                cy="${welcomeAvatar.centerY}"
-                r="${welcomeAvatar.frameRadius}"
-                fill="none"
-                stroke="#062c40"
-                stroke-width="16"
-                opacity="0.95"
-            />
-            <circle
-                cx="${welcomeAvatar.centerX}"
-                cy="${welcomeAvatar.centerY}"
-                r="${welcomeAvatar.frameRadius}"
-                fill="none"
-                stroke="#b9f5ff"
-                stroke-width="7"
-                opacity="0.95"
-            />
-        </svg>
-        `)
-
         const avatarWell = Buffer.from(`
         <svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
             <circle
@@ -280,8 +256,6 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
                 left: welcomeAvatar.left,
                 top: welcomeAvatar.top,
             })
-            // Keep a clean decorative ring above the photo.
-            layers.push({ input: avatarFrame, left: 0, top: 0 })
         }
 
         // Render the name separately from the optional avatar. A failed
