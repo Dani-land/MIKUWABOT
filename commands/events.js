@@ -15,12 +15,18 @@ let welcomeTemplatePromise
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
 const welcomeAvatar = {
-    size: 260,
-    left: 290,
-    top: 500,
     centerX: 420,
     centerY: 630,
     wellRadius: 140,
+    get size() {
+        return this.wellRadius * 2
+    },
+    get left() {
+        return this.centerX - this.wellRadius
+    },
+    get top() {
+        return this.centerY - this.wellRadius
+    },
 }
 
 function escapeXml(value) {
@@ -194,7 +200,10 @@ async function makeCircularAvatar(buffer, size = 270) {
 
     return sharp(buffer)
         .rotate()
-        .resize(size, size, { fit: 'cover' })
+        .resize(size, size, {
+            fit: 'cover',
+            position: 'centre',
+        })
         .composite([{ input: circleMask, blend: 'dest-in' }])
         .png()
         .toBuffer()
