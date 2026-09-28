@@ -14,6 +14,11 @@ const welcomeTemplatePath = path.resolve(process.cwd(), 'assets/kawaii-welcome.p
 let welcomeTemplatePromise
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
+const welcomeAvatar = {
+    size: 440,
+    left: 200,
+    top: 410,
+}
 
 function escapeXml(value) {
     return String(value)
@@ -203,7 +208,7 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
         let avatarBuffer = null
         if (avatar) {
             try {
-                avatarBuffer = await makeCircularAvatar(avatar)
+                avatarBuffer = await makeCircularAvatar(avatar, welcomeAvatar.size)
             } catch (error) {
                 console.error(`[WELCOME AVATAR] No se pudo preparar la foto: ${error.message}`)
             }
@@ -231,8 +236,8 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
         if (avatarBuffer) {
             layers.push({
                 input: avatarBuffer,
-                left: 178,
-                top: 402,
+                left: welcomeAvatar.left,
+                top: welcomeAvatar.top,
             })
         }
 
