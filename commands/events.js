@@ -15,17 +15,16 @@ let welcomeTemplatePromise
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
 const welcomeAvatar = {
-    centerX: 420,
-    centerY: 630,
-    wellRadius: 140,
-    get size() {
-        return this.wellRadius * 2
-    },
+    // These coordinates match the actual icon in kawaii-welcome.png.
+    centerX: 382,
+    centerY: 597,
+    frameRadius: 140,
+    size: 260,
     get left() {
-        return this.centerX - this.wellRadius
+        return this.centerX - this.size / 2
     },
     get top() {
-        return this.centerY - this.wellRadius
+        return this.centerY - this.size / 2
     },
 }
 
@@ -202,7 +201,7 @@ async function makeCircularAvatar(buffer, size = 270) {
         .rotate()
         .resize(size, size, {
             fit: 'cover',
-            position: 'centre',
+            position: 'attention',
         })
         .composite([{ input: circleMask, blend: 'dest-in' }])
         .png()
@@ -249,7 +248,7 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
             <circle
                 cx="${welcomeAvatar.centerX}"
                 cy="${welcomeAvatar.centerY}"
-                r="${welcomeAvatar.wellRadius}"
+                r="${welcomeAvatar.frameRadius}"
                 fill="#062c40"
             />
         </svg>
