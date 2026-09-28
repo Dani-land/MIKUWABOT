@@ -42,22 +42,107 @@ function jidBase(value) {
         .split(':')[0]
 }
 
-function getParticipantName(participant, metadata, jid, fallback) {
-    const participantBase = jidBase(jid)
-    const metadataParticipant = (metadata?.participants || []).find((item) =>
-        [item?.id, item?.lid, item?.phoneNumber]
+function toUsableJid(value) {
+    const jid = String(value || '').trim()
+    if (!jid) return ''
+    if (jid.includes('@')) return jid
+    return /^\d+$/.test(jid) ? `${jid}@s.whatsapp.net` : jid
+}
+
+function uniqueJids(values) {
+    return [...new Set(values
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim()))]
+}
+
+function findMetadataParticipant(metadata, identities) {
+    const identityBases = new Set(
+        identities
             .filter(Boolean)
-            .some((identity) => jidBase(identity) === participantBase)
+            .map((identity) => jidBase(identity))
+            .filter(Boolean)
     )
 
-    return cleanDisplayName(
+    return (metadata?.participants || []).find((item) =>
+        [item?.id, item?.lid, item?.phoneNumber]
+            .filter(Boolean)
+            .some((identity) => identityBases.has(jidBase(identity)))
+    )
+}
+
+function getStoredUserName(identities) {
+    const users = global.db?.data?.users || {}
+    for (const identity of identities) {
+        const exactName = users[identity]?.name
+        if (exactName) return exactName
+    }
+
+    const matchingEntry = Object.entries(users).find(([storedJid, user]) =>
+        identities.some((identity) => sameJid(storedJid, identity)) && user?.name
+    )
+    return matchingEntry?.[1]?.name || ''
+}
+
+function getParticipantContext(participant, metadata, originalJid, resolvedJid) {
+    const initialIdentities = uniqueJids([
+        resolvedJid,
+        originalJid,
+        participant?.jid,
+        participant?.id,
+        participant?.lid,
+        participant?.phoneNumber,
+    ])
+    const metadataParticipant = findMetadataParticipant(
+        metadata,
+        initialIdentities
+    )
+    const identities = uniqueJids([
+        ...initialIdentities,
+        metadataParticipant?.id,
+        metadataParticipant?.lid,
+        metadataParticipant?.phoneNumber,
+    ])
+    const phoneJid = identities
+        .map(toUsableJid)
+        .find((identity) => identity.endsWith('@s.whatsapp.net'))
+    const phone = jidBase(phoneJid || resolvedJid || originalJid)
+    const storedName = getStoredUserName(identities)
+    const displayName = cleanDisplayName(
         participant?.pushName ||
         participant?.notify ||
         participant?.name ||
+        metadataParticipant?.pushName ||
         metadataParticipant?.notify ||
-        metadataParticipant?.name,
-        fallback
+        metadataParticipant?.name ||
+        storedName,
+        phone || 'Usuario'
     )
+
+    return {
+        metadataParticipant,
+        identities,
+        phone,
+        displayName,
+    }
+}
+
+async function getProfilePictureUrl(client, identities) {
+    for (const identity of identities) {
+        const decodedIdentity = typeof client?.decodeJid === 'function'
+            ? client.decodeJid(toUsableJid(identity))
+            : toUsableJid(identity)
+        if (!decodedIdentity) continue
+
+        for (const type of ['image', 'preview']) {
+            const profilePictureUrl = await client.profilePictureUrl(
+                decodedIdentity,
+                type
+            ).catch(() => null)
+            if (profilePictureUrl) return profilePictureUrl
+        }
+    }
+
+    return null
 }
 
 async function getWelcomeTemplate() {
@@ -234,17 +319,30 @@ export const participantsUpdate = async (client, anu) => {
 
         for (const entry of entries) {
             const participant = typeof entry === 'string' ? { id: entry } : (entry || {})
-            const originalJid = participant.id || participant.lid || participant.phoneNumber
+            const originalJid =
+                participant.id ||
+                participant.jid ||
+                participant.lid ||
+                participant.phoneNumber
             if (!originalJid) continue
 
-            let jid = await resolveLidToRealJid(originalJid, client, anu.id)
-            if (jid?.endsWith('@lid') && participant.phoneNumber) {
-                jid = participant.phoneNumber
-            }
-            const mentionJid = jid || originalJid
+            const jid = await resolveLidToRealJid(originalJid, client, anu.id)
+            const context = getParticipantContext(
+                participant,
+                metadata,
+                originalJid,
+                jid
+            )
+            const mentionJid = context.identities
+                .map(toUsableJid)
+                .find((identity) => identity.endsWith('@s.whatsapp.net')) ||
+                toUsableJid(jid || originalJid)
             const phone = jidBase(mentionJid)
-            const displayName = getParticipantName(participant, metadata, mentionJid, phone || 'Usuario')
-            const profilePictureUrl = await client.profilePictureUrl(mentionJid, 'image').catch(() => null)
+            const displayName = context.displayName
+            const profilePictureUrl = await getProfilePictureUrl(
+                client,
+                context.identities
+            )
             const welcomeCard = await makeWelcomeCard({
                 profilePictureUrl,
                 displayName,
