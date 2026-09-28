@@ -15,12 +15,13 @@ let welcomeTemplatePromise
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
 const welcomeAvatar = {
-    size: 400,
-    left: 220,
-    top: 430,
+    size: 360,
+    left: 240,
+    top: 450,
     centerX: 420,
     centerY: 630,
     frameRadius: 220,
+    wellRadius: 200,
 }
 
 function escapeXml(value) {
@@ -258,18 +259,30 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
         </svg>
         `)
 
+        const avatarWell = Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
+            <circle
+                cx="${welcomeAvatar.centerX}"
+                cy="${welcomeAvatar.centerY}"
+                r="${welcomeAvatar.wellRadius}"
+                fill="#062c40"
+            />
+        </svg>
+        `)
+
         const layers = []
         if (avatarBuffer) {
+            // Hide the template's placeholder icon first, then place the
+            // smaller profile photo inside it with a clean margin.
+            layers.push({ input: avatarWell, left: 0, top: 0 })
             layers.push({
                 input: avatarBuffer,
                 left: welcomeAvatar.left,
                 top: welcomeAvatar.top,
             })
+            // Keep a clean decorative ring above the photo.
+            layers.push({ input: avatarFrame, left: 0, top: 0 })
         }
-
-        // Keep a clean decorative ring above the photo while the original
-        // placeholder icon remains hidden behind the avatar.
-        layers.push({ input: avatarFrame, left: 0, top: 0 })
 
         // Render the name separately from the optional avatar. A failed
         // profile-picture download must never remove the name or template.
