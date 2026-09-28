@@ -1,0 +1,1 @@
+- [Tarjetas de bienvenida](welcome-card-rendering.md) — los recursos remotos opcionales no deben impedir que se rendericen nombre y plantilla.
