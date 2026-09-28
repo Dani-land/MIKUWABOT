@@ -1,8 +1,6 @@
 import fetch from 'node-fetch'
 
-const NYX_BASE = 'https://nyxdlapi.vercel.app'
-const NYX_TT_URL = `${NYX_BASE}/api/downloads/tiktok`
-const NYX_API_KEY = 'nyx_vDSYgjTlKOOLhz-_XmojwHjvH1_hp5c2'
+const TIKTOK_API = 'https://dlapixy.vercel.app/api/downloads/tiktok'
 
 export default {
   command: ['tiktok', 'tt'],
@@ -18,53 +16,64 @@ export default {
     const url = args[0]
 
     try {
-      const apiUrl = `${NYX_TT_URL}?url=${encodeURIComponent(url)}&apikey=${NYX_API_KEY}`
+      const apiUrl = `${TIKTOK_API}?url=${encodeURIComponent(url)}`
       const res = await fetch(apiUrl)
       const text = await res.text()
 
       if (!res.ok) {
-        throw new Error(`NyxDLaPI HTTP ${res.status}: ${text.slice(0, 200)}`)
+        throw new Error(`DLaPixy HTTP ${res.status}: ${text.slice(0, 200)}`)
       }
 
       let json
+
       try {
         json = JSON.parse(text)
       } catch {
-        throw new Error(`Respuesta inválida de NyxDLaPI: ${text.slice(0, 200)}`)
+        throw new Error(`Respuesta inválida de DLaPixy: ${text.slice(0, 200)}`)
       }
 
-      if (!json?.status) {
-        throw new Error(json?.message || 'La API no devolvió un resultado válido.')
+      if (!json?.ok) {
+        throw new Error('La API no devolvió un resultado válido.')
       }
 
-      const result = json?.result
+      const files = json?.files || []
 
-      // preferimos la versión sin marca de agua; si no viene, usamos la normal
-      const videoUrl = result?.downloadNoWatermark || result?.download
+      const videoFile = files.find(
+        file =>
+          file?.kind === 'video' &&
+          file?.format === 'mp4' &&
+          file?.url
+      )
 
-      if (!result || !videoUrl) {
-        return m.reply('ꕥ No se pudo obtener el video. Verifica que el enlace sea público.')
+      if (!videoFile?.url) {
+        return m.reply(
+          'ꕥ No se pudo obtener el video. Verifica que el enlace sea público.'
+        )
       }
 
       const caption = `✰ TikTok ✰
 
-⌗ 𝕌𝕤𝕦𝕒𝕣𝕚𝕠: ${result.author || result.username || 'Desconocido'}
-⌗ 𝔻𝕖𝕤𝕔𝕣𝕚𝕡𝕔𝕚𝕠𝕟: ${result.title || 'Sin descripción'}
-⌗ ℂ𝕒𝕟𝕔𝕚𝕠𝕟: ${result.musicTitle || 'N/A'}${result.musicArtist ? ` - ${result.musicArtist}` : ''}
+⌗ 𝕋í𝕥𝕦𝕝𝕠: ${json.title || 'Sin título'}
+⌗ ℙ𝕣𝕠𝕧𝕖𝕖𝕕𝕠𝕣: ${json.provider || 'TikTok'}
+⌗ 𝔻𝕦𝕣𝕒𝕔𝕚ó𝕟: ${json.durationSeconds ? `${json.durationSeconds}s` : 'N/A'}
 
-⌗ ᴀᴘɪ : ${NYX_BASE}`
+⌗ ᴀᴘɪ : DLaPixy`
 
       await client.sendMessage(
         m.chat,
         {
-          video: { url: videoUrl },
+          video: { url: videoFile.url },
           caption,
         },
         { quoted: m }
       )
+
     } catch (e) {
       console.log('[tiktok]', e.message)
-      await m.reply('ꕥ El servicio no está disponible en este momento.')
+
+      await m.reply(
+        'ꕥ El servicio no está disponible en este momento.'
+      )
     }
   },
 }
