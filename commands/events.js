@@ -1,9 +1,7 @@
 import chalk from 'chalk'
 import fs from 'fs/promises'
-import os from 'os'
 import path from 'path'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
+import sharp from 'sharp'
 import {
     resolveLidToRealJid,
     normalizeJid,
@@ -14,7 +12,6 @@ const groupMetadataCache = new Map()
 const groupMetadataRequests = new Map()
 const welcomeTemplatePath = path.resolve(process.cwd(), 'assets/kawaii-welcome.png')
 let welcomeTemplatePromise
-const execFileAsync = promisify(execFile)
 
 const fallbackProfilePicture = 'https://files.catbox.moe/sxt0he.jpeg'
 
@@ -180,31 +177,19 @@ async function downloadImage(url) {
     return null
 }
 
-async function makeCircularAvatar(buffer, tempDir, size = 270) {
-    const sourcePath = path.join(tempDir, 'profile-picture')
-    const avatarPath = path.join(tempDir, 'profile-picture-circle.png')
-    await fs.writeFile(sourcePath, buffer)
+async function makeCircularAvatar(buffer, size = 270) {
+    const circleMask = Buffer.from(`
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/>
+        </svg>
+    `)
 
-    await execFileAsync('magick', [
-        sourcePath,
-        '-auto-orient',
-        '-thumbnail', `${size}x${size}^`,
-        '-gravity', 'center',
-        '-extent', `${size}x${size}`,
-        '-alpha', 'on',
-        '-background', 'none',
-        '(',
-        '-size', `${size}x${size}`,
-        'xc:none',
-        '-fill', 'white',
-        '-draw', `circle ${size / 2},${size / 2} ${size / 2},0`,
-        ')',
-        '-compose', 'DstIn',
-        '-composite',
-        avatarPath,
-    ], { timeout: 15000 })
-
-    return avatarPath
+    return sharp(buffer)
+        .rotate()
+        .resize(size, size, { fit: 'cover' })
+        .composite([{ input: circleMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer()
 }
 
 async function makeWelcomeCard({ profilePictureUrl, displayName }) {
@@ -212,41 +197,21 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
     if (!template) return profilePictureUrl || fallbackProfilePicture
 
     const name = escapeXml(`@${displayName}`)
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'miku-welcome-'))
 
     try {
-        const templatePath = path.join(tempDir, 'template.png')
-        const nameOverlayPath = path.join(tempDir, 'name.svg')
-        const avatarOutputPath = path.join(tempDir, 'welcome-with-avatar.png')
-        const outputPath = path.join(tempDir, 'welcome.png')
-        await fs.writeFile(templatePath, template)
-
         const avatar = await downloadImage(profilePictureUrl)
-        let avatarPath = null
+        let avatarBuffer = null
         if (avatar) {
             try {
-                avatarPath = await makeCircularAvatar(avatar, tempDir)
+                avatarBuffer = await makeCircularAvatar(avatar)
             } catch (error) {
                 console.error(`[WELCOME AVATAR] No se pudo preparar la foto: ${error.message}`)
             }
         }
 
-        await fs.writeFile(nameOverlayPath, `
+        const nameOverlay = Buffer.from(`
         <svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254">
             <rect width="1254" height="1254" fill="none"/>
-            <defs>
-                <filter id="name-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-                    <feOffset dx="0" dy="4" result="offsetblur"/>
-                    <feComponentTransfer>
-                        <feFuncA type="linear" slope="0.75"/>
-                    </feComponentTransfer>
-                    <feMerge>
-                        <feMergeNode/>
-                        <feMergeNode in="SourceGraphic"/>
-                    </feMerge>
-                </filter>
-            </defs>
             <text
                 x="627"
                 y="375"
@@ -258,39 +223,29 @@ async function makeWelcomeCard({ profilePictureUrl, displayName }) {
                 stroke="#062c40"
                 stroke-width="7"
                 paint-order="stroke"
-                filter="url(#name-shadow)"
             >${name}</text>
         </svg>
         `)
 
-        const imageArgs = [templatePath]
-        if (avatarPath) {
-            imageArgs.push(
-                avatarPath,
-                '-geometry', '+178+402',
-                '-composite',
-                avatarOutputPath,
-            )
-        } else {
-            imageArgs.push(avatarOutputPath)
+        const layers = []
+        if (avatarBuffer) {
+            layers.push({
+                input: avatarBuffer,
+                left: 178,
+                top: 402,
+            })
         }
-        await execFileAsync('magick', imageArgs, { timeout: 15000 })
 
-        // Render the name in a separate step so an unavailable profile photo
-        // can never remove the text or make the whole welcome card fail.
-        await execFileAsync('magick', [
-            avatarOutputPath,
-            '-background', 'none',
-            nameOverlayPath,
-            '-composite',
-            outputPath,
-        ], { timeout: 15000 })
-        return await fs.readFile(outputPath)
+        // Render the name separately from the optional avatar. A failed
+        // profile-picture download must never remove the name or template.
+        layers.push({ input: nameOverlay, left: 0, top: 0 })
+        return await sharp(template)
+            .composite(layers)
+            .png()
+            .toBuffer()
     } catch (error) {
         console.error(`[WELCOME IMAGE] No se pudo generar la tarjeta: ${error.message}`)
         return template
-    } finally {
-        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {})
     }
 }
 
