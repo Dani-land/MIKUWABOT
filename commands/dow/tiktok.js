@@ -21,7 +21,7 @@ export default {
       const text = await res.text()
 
       if (!res.ok) {
-        throw new Error(`DLaPixy HTTP ${res.status}: ${text.slice(0, 200)}`)
+        throw new Error(`DLaPixy HTTP ${res.status}: ${text.slice(0, 500)}`)
       }
 
       let json
@@ -29,11 +29,15 @@ export default {
       try {
         json = JSON.parse(text)
       } catch {
-        throw new Error(`Respuesta inválida de DLaPixy: ${text.slice(0, 200)}`)
+        throw new Error(`Respuesta inválida de DLaPixy: ${text.slice(0, 500)}`)
       }
 
       if (!json?.ok) {
-        throw new Error('La API no devolvió un resultado válido.')
+        throw new Error(
+          json?.message ||
+          json?.error ||
+          'La API no devolvió un resultado válido.'
+        )
       }
 
       const files = json?.files || []
@@ -46,8 +50,8 @@ export default {
       )
 
       if (!videoFile?.url) {
-        return m.reply(
-          'ꕥ No se pudo obtener el video. Verifica que el enlace sea público.'
+        throw new Error(
+          `La API respondió correctamente, pero no se encontró un video MP4.\nArchivos recibidos: ${JSON.stringify(files).slice(0, 500)}`
         )
       }
 
@@ -69,10 +73,10 @@ export default {
       )
 
     } catch (e) {
-      console.log('[tiktok]', e.message)
+      console.log('[tiktok]', e)
 
       await m.reply(
-        'ꕥ El servicio no está disponible en este momento.'
+        `ꕥ *Error en TikTok:*\n\n${e?.message || String(e)}`
       )
     }
   },
